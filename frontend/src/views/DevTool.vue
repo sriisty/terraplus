@@ -161,7 +161,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { BarChart3, Image, Languages, RadioTower, RefreshCw, Send, Sprout } from 'lucide-vue-next'
 import Chart from 'chart.js/auto'
-import { fetchCampaignHistory, fetchSegmentStats, predictCampaign } from './api'
+import { fetchCampaignHistory, fetchSegmentStats, predictCampaign } from '../api'
 
 const farmerName = ref('')
 const form = ref({
