@@ -64,13 +64,13 @@
         <div class="card-header">Ask AI 🤖</div>
         <p class="subtitle">Ask anything about your crop, pests, or products</p>
         <div class="chat-input">
-          <input type="text" placeholder="My wheat leaves are turning yellow..." />
-          <button class="send-btn">➤</button>
+          <input type="text" v-model="aiQuery" :placeholder="isAsking ? 'Thinking...' : 'My wheat leaves are turning yellow...'" :disabled="isAsking" />
+          <button class="send-btn" @click="askAI" :disabled="isAsking">➤</button>
         </div>
         <div class="quick-chips">
-          <span class="chip">💧 Irrigation tips</span>
-          <span class="chip">🐛 Pest ID help</span>
-          <span class="chip">💊 Dosage guide</span>
+          <span class="chip" @click="aiQuery = 'Irrigation tips'">💧 Irrigation tips</span>
+          <span class="chip" @click="aiQuery = 'Pest ID help'">🐛 Pest ID help</span>
+          <span class="chip" @click="aiQuery = 'Dosage guide'">💊 Dosage guide</span>
         </div>
       </div>
 
@@ -108,6 +108,23 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref } from 'vue'
+
+const aiQuery = ref('')
+const isAsking = ref(false)
+
+function askAI() {
+  if (!aiQuery.value) return
+  isAsking.value = true
+  setTimeout(() => {
+    isAsking.value = false
+    aiQuery.value = ''
+    alert('This is a UI prototype. In the final app, this will connect to the LangChain RAG backend!')
+  }, 1000)
+}
+</script>
 
 <style scoped>
 .app-screen {
