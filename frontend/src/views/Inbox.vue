@@ -63,13 +63,16 @@
           </div>
         </div>
         
-        <div class="feedback">
+        <div class="feedback" v-if="!voted">
           <p>Was this message useful?</p>
           <div class="feedback-actions">
-            <button class="btn-vote">👍 Yes, helpful</button>
-            <button class="btn-vote">👎 Not relevant</button>
+            <button class="btn-vote" @click="voted = true">👍 Yes, helpful</button>
+            <button class="btn-vote" @click="voted = true">👎 Not relevant</button>
           </div>
           <small>Your feedback trains our AI to send better messages</small>
+        </div>
+        <div class="feedback" v-else>
+          <p style="color: #1f7a4d;">Thanks for your feedback! ✓</p>
         </div>
       </div>
     </div>
@@ -98,6 +101,12 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref } from 'vue'
+
+const voted = ref(false)
+</script>
 
 <style scoped>
 .app-screen {

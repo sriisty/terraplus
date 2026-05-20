@@ -18,18 +18,19 @@
       <div class="form-group">
         <label>CHOOSE YOUR LANGUAGE</label>
         <div class="lang-grid">
-          <button class="lang-btn active">हिंदी</button>
-          <button class="lang-btn">ਪੰਜਾਬੀ</button>
-          <button class="lang-btn">मराठी</button>
-          <button class="lang-btn">ગુજ.</button>
-          <button class="lang-btn">বাংলা</button>
-          <button class="lang-btn">ಕನ್ನಡ</button>
+          <button v-for="lang in ['हिंदी', 'ਪੰਜਾਬੀ', 'मराठी', 'ગુજ.', 'বাংলা', 'ಕನ್ನಡ']" 
+                  :key="lang" 
+                  class="lang-btn" 
+                  :class="{ active: selectedLang === lang }"
+                  @click="selectedLang = lang">
+            {{ lang }}
+          </button>
         </div>
       </div>
 
       <div class="form-group">
         <label>YOUR MAIN CROP</label>
-        <select>
+        <select v-model="selectedCrop">
           <option>🌾 Wheat</option>
           <option>🌽 Maize</option>
           <option>🌼 Mustard</option>
@@ -39,7 +40,7 @@
 
       <div class="form-group">
         <label>STATE / DISTRICT</label>
-        <select>
+        <select v-model="selectedLocation">
           <option>Uttar Pradesh · Agra</option>
           <option>Punjab · Ludhiana</option>
           <option>Bihar · Patna</option>
@@ -48,7 +49,7 @@
 
       <div class="form-group">
         <label>FARM SIZE</label>
-        <select>
+        <select v-model="selectedSize">
           <option>2–5 acres</option>
           <option>5–10 acres</option>
           <option>10+ acres</option>
@@ -62,6 +63,15 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref } from 'vue'
+
+const selectedLang = ref('हिंदी')
+const selectedCrop = ref('🌾 Wheat')
+const selectedLocation = ref('Uttar Pradesh · Agra')
+const selectedSize = ref('2–5 acres')
+</script>
 
 <style scoped>
 .onboarding-screen {
