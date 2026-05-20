@@ -11,6 +11,9 @@ Production-style hackathon MVP for AI-powered agricultural marketing at scale. T
 - Generates SMS, WhatsApp, and voice-call campaign variants in Hindi, Telugu, Tamil, Marathi, Punjabi, or English.
 - Infers hyperlocal language style from state, district/block, device, literacy level, and language preference.
 - Persists prediction logs, campaign history, and generated advisories in SQLite.
+- **Farmer App UI:** Includes Onboarding, Dashboard, and Messages Inbox built in Vue.
+- **Grower Selfie Tool:** An HTML5 Canvas-based offline-capable feature for farmers to generate branded selfies to share on WhatsApp, acting as an AI-powered brand advocacy engine.
+- **Admin Dashboard:** Visualizes campaign performance, open rates by crop, and channel distributions.
 
 ## Backend Setup
 
