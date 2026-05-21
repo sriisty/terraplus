@@ -1,5 +1,11 @@
 <template>
-  <div class="selfie-page-container">
+  <div class="web-page-wrapper selfie-page-container">
+    <!-- Dynamic Background Blobs -->
+    <div class="bg-blob-container">
+      <div class="bg-blob blob-1"></div>
+      <div class="bg-blob blob-2"></div>
+      <div class="bg-blob blob-3"></div>
+    </div>
     <!-- Header Nav -->
     <header class="selfie-header">
       <router-link to="/home" class="back-btn">
@@ -12,7 +18,7 @@
 
     <div class="selfie-main">
       <!-- Input Panel -->
-      <section class="selfie-form-panel card">
+      <section class="selfie-form-panel card glass-card hover-lift animate-fade-in-up">
         <div class="intro">
           <div class="badge badge-success mb-2">📸 AI Grower Studio</div>
           <h3 class="form-title">Show Your Pride!</h3>
@@ -36,6 +42,8 @@
             <option value="Amistar Top">Amistar Top (Fungicide)</option>
             <option value="Actara 25 WG">Actara 25 WG (Insecticide)</option>
             <option value="Score 250 EC">Score 250 EC (Fungicide)</option>
+            <option value="Ampligo">Ampligo (Insecticide)</option>
+            <option value="Revus">Revus (Fungicide)</option>
           </select>
         </div>
 
@@ -61,10 +69,18 @@
       </section>
 
       <!-- Preview Canvas Panel -->
-      <section class="selfie-preview-panel card">
+      <section class="selfie-preview-panel card glass-card hover-lift animate-fade-in-up delay-1">
         <h4 class="preview-title">Live Poster Preview</h4>
         
-        <div class="canvas-wrapper">
+        <div class="canvas-wrapper viewfinder-container">
+          <div class="viewfinder-corners" v-if="imageLoaded"></div>
+          <div class="viewfinder-corners-bottom" v-if="imageLoaded"></div>
+          <div class="rec-indicator" v-if="imageLoaded">
+            <span class="rec-dot"></span>
+            <span>REC</span>
+          </div>
+          <div class="camera-grid-lines" v-if="imageLoaded"></div>
+          
           <canvas ref="canvasEl" width="1080" height="1080" class="canvas-element"></canvas>
           <div v-if="!imageLoaded" class="canvas-placeholder">
             <Camera :size="48" class="placeholder-icon" />
@@ -88,15 +104,30 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ArrowLeft, Camera, Share2, Download, RefreshCw } from 'lucide-vue-next'
 
 const fileInput = ref(null)
 const canvasEl = ref(null)
 const imageLoaded = ref(false)
 const userImage = ref(null)
-const crop = ref('🌾 Wheat')
-const brand = ref('Topik 15 WP')
+
+const crop = ref(localStorage.getItem('farmer_crop') || '🌾 Wheat')
+
+const brandMap = {
+  '🌾 Wheat': 'Topik 15 WP',
+  '🌽 Maize': 'Ampligo',
+  '🌼 Mustard': 'Actara 25 WG',
+  '🥔 Potato': 'Revus'
+}
+
+const brand = ref(brandMap[crop.value] || 'Topik 15 WP')
+
+watch(crop, (newCrop) => {
+  if (brandMap[newCrop]) {
+    brand.value = brandMap[newCrop]
+  }
+})
 
 function handleFileUpload(event) {
   const file = event.target.files[0]

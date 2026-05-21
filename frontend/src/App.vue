@@ -2,10 +2,11 @@
   <div>
     <!-- Navigation for dev purposes -->
     <nav class="dev-nav" v-if="showDevNav">
-      <router-link to="/">Onboarding</router-link> |
-      <router-link to="/home">Farmer Home</router-link> |
-      <router-link to="/inbox">Inbox</router-link> |
-      <router-link to="/admin">Admin Analytics</router-link> |
+      <router-link to="/">Onboarding</router-link>
+      <router-link to="/home">Farmer Home</router-link>
+      <router-link to="/inbox">Inbox</router-link>
+      <router-link to="/admin">Admin Analytics</router-link>
+      <router-link to="/selfie">Grower Selfie</router-link>
       <router-link to="/dev-tool">API Dev Tool</router-link>
     </nav>
     <router-view />
@@ -17,28 +18,63 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const showDevNav = computed(() => route.path !== '/dev-tool')
+const showDevNav = computed(() => true)
 </script>
 
 <style>
 .dev-nav {
-  padding: 10px;
-  background: #333;
-  color: white;
-  text-align: center;
+  padding: 12px 16px;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
   font-family: sans-serif;
-  font-size: 14px;
+  font-size: 13px;
+  scrollbar-width: none;
+}
+.dev-nav::-webkit-scrollbar {
+  display: none;
 }
 .dev-nav a {
-  color: #aaddff;
+  color: #cbd5e1;
   text-decoration: none;
-  margin: 0 5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 .dev-nav a:hover {
-  text-decoration: underline;
+  color: #ffffff;
+  background: #1e293b;
+}
+.dev-nav a.router-link-active {
+  color: #059669;
+  background: #ecfdf5;
 }
 
-/* Mobile Mock Styles */
+@media (max-width: 768px) {
+  .dev-nav {
+    justify-content: flex-start;
+    padding: 10px 12px;
+  }
+}
+
+/* Base Responsive Page Layout Wrapper */
+.web-page-wrapper {
+  width: 100%;
+  min-height: calc(100vh - 45px);
+  background-color: var(--slate-50);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+}
+
+/* Mobile Mock Styles (Legacy fallback) */
 .mobile-shell {
   width: 100%;
   max-width: 480px;

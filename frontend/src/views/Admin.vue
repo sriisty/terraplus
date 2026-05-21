@@ -87,7 +87,7 @@
           </div>
           <div class="kpi-data">
             <span class="kpi-label">Farmers Reached</span>
-            <h3 class="kpi-value">6,240</h3>
+            <h3 class="kpi-value">{{ kpiReached.toLocaleString() }}</h3>
             <span class="kpi-change positive">↑ 34% vs last Rabi</span>
           </div>
         </div>
@@ -99,7 +99,7 @@
           </div>
           <div class="kpi-data">
             <span class="kpi-label">AI Dialogs</span>
-            <h3 class="kpi-value">12,840</h3>
+            <h3 class="kpi-value">{{ kpiDialogs.toLocaleString() }}</h3>
             <span class="kpi-change positive">94.2% completion</span>
           </div>
         </div>
@@ -111,7 +111,7 @@
           </div>
           <div class="kpi-data">
             <span class="kpi-label">Campaign Triggers</span>
-            <h3 class="kpi-value">14 Live</h3>
+            <h3 class="kpi-value">{{ kpiTriggersCount }} Live</h3>
             <span class="kpi-change">Active in Agra, Ludhiana</span>
           </div>
         </div>
@@ -123,7 +123,7 @@
           </div>
           <div class="kpi-data">
             <span class="kpi-label">Grower Satisfaction</span>
-            <h3 class="kpi-value">84.1%</h3>
+            <h3 class="kpi-value">{{ kpiSatisfaction }}</h3>
             <span class="kpi-change positive">+5.2% NPS rating</span>
           </div>
         </div>
@@ -222,9 +222,9 @@
                 </div>
               </div>
               <div class="channel-values">
-                <span class="channel-vol">4,479 (72%)</span>
+                <span class="channel-vol">{{ channelStats.whatsapp.count.toLocaleString() }} ({{ channelStats.whatsapp.percentage }}%)</span>
                 <div class="channel-bar-container">
-                  <div class="channel-bar-fill whatsapp-bar" style="width: 72%"></div>
+                  <div class="channel-bar-fill whatsapp-bar" :style="{ width: channelStats.whatsapp.percentage + '%' }"></div>
                 </div>
               </div>
             </div>
@@ -239,9 +239,9 @@
                 </div>
               </div>
               <div class="channel-values">
-                <span class="channel-vol">1,028 (16.5%)</span>
+                <span class="channel-vol">{{ channelStats.voice.count.toLocaleString() }} ({{ channelStats.voice.percentage }}%)</span>
                 <div class="channel-bar-container">
-                  <div class="channel-bar-fill voice-bar" style="width: 16.5%"></div>
+                  <div class="channel-bar-fill voice-bar" :style="{ width: channelStats.voice.percentage + '%' }"></div>
                 </div>
               </div>
             </div>
@@ -256,9 +256,9 @@
                 </div>
               </div>
               <div class="channel-values">
-                <span class="channel-vol">733 (11.5%)</span>
+                <span class="channel-vol">{{ channelStats.sms.count.toLocaleString() }} ({{ channelStats.sms.percentage }}%)</span>
                 <div class="channel-bar-container">
-                  <div class="channel-bar-fill sms-bar" style="width: 11.5%"></div>
+                  <div class="channel-bar-fill sms-bar" :style="{ width: channelStats.sms.percentage + '%' }"></div>
                 </div>
               </div>
             </div>
@@ -334,31 +334,29 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-vue-next'
+import { fetchCampaignMetrics, fetchCampaignHistory } from '../api'
 
 const isSidebarOpen = ref(false)
 const isOnline = ref(navigator.onLine)
 const winningVariant = ref('B')
 
+const kpiReached = ref(6240)
+const kpiDialogs = ref(12840)
+const kpiTriggersCount = ref(14)
+const kpiSatisfaction = ref('84.1%')
+
+const channelStats = ref({
+  whatsapp: { count: 4479, percentage: 72 },
+  voice: { count: 1028, percentage: 16.5 },
+  sms: { count: 733, percentage: 11.5 }
+})
+
 const updateOnlineStatus = () => {
   isOnline.value = navigator.onLine
 }
 
-onMounted(() => {
-  window.addEventListener('online', updateOnlineStatus)
-  window.addEventListener('offline', updateOnlineStatus)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('online', updateOnlineStatus)
-  window.removeEventListener('offline', updateOnlineStatus)
-})
-
-const closeSidebar = () => {
-  isSidebarOpen.value = false
-}
-
-// Mock database for autonomous field rep dispatches
-const fieldTriggers = ref([
+// Base mock database for autonomous field rep dispatches
+const defaultFieldTriggers = [
   {
     id: 1,
     farmer: "Ram Singh",
@@ -399,7 +397,89 @@ const fieldTriggers = ref([
     rep: "Suresh Kumar",
     status: "Scheduled"
   }
-])
+]
+
+const fieldTriggers = ref([...defaultFieldTriggers])
+const loading = ref(false)
+
+async function loadMetrics() {
+  loading.value = true
+  try {
+    const metrics = await fetchCampaignMetrics()
+    const historyData = await fetchCampaignHistory()
+
+    if (metrics && metrics.total_campaigns > 0) {
+      kpiTriggersCount.value = 14 + metrics.total_campaigns // Add generated to live count
+      
+      const wa = (metrics.by_channel.whatsapp || 0)
+      const voice = (metrics.by_channel.voice_call || metrics.by_channel.voice || 0)
+      const sms = (metrics.by_channel.sms || 0)
+      
+      const totalReal = wa + voice + sms
+      if (totalReal > 0) {
+        // Blend real campaigns into the base mock count for visualization
+        const blendedWa = 4479 + wa
+        const blendedVoice = 1028 + voice
+        const blendedSms = 733 + sms
+        const blendedTotal = blendedWa + blendedVoice + blendedSms
+        
+        channelStats.value.whatsapp.count = blendedWa
+        channelStats.value.whatsapp.percentage = Math.round((blendedWa / blendedTotal) * 100)
+        
+        channelStats.value.voice.count = blendedVoice
+        channelStats.value.voice.percentage = Math.round((blendedVoice / blendedTotal) * 100)
+        
+        channelStats.value.sms.count = blendedSms
+        channelStats.value.sms.percentage = Math.round((blendedSms / blendedTotal) * 100)
+      }
+
+      kpiDialogs.value = 12840 + metrics.total_campaigns
+      kpiReached.value = 6240 + metrics.total_campaigns
+    }
+
+    if (historyData && historyData.length > 0) {
+      // Map history to triggers
+      const mapped = historyData.map((item) => {
+        const name = "Farmer ID: " + (item.farmer_id || item.grower_id || "102")
+        const loc = item.segment ? `${item.segment} Receptivity` : "UP Region"
+        const triggerText = `${item.channel.toUpperCase()} ${item.product} Alert`
+        const severity = item.predicted_score > 0.7 ? 'high' : item.predicted_score > 0.4 ? 'medium' : 'low'
+        const action = `Generated personalized advisory for ${item.product}`
+        const rep = item.id % 2 === 0 ? "Suresh Kumar" : "Harpreet Singh"
+        return {
+          id: 'api-' + item.id,
+          farmer: name,
+          location: loc,
+          triggerText,
+          severity,
+          action,
+          rep,
+          status: item.actual_clicked ? 'Completed' : 'Scheduled'
+        }
+      })
+      fieldTriggers.value = [...mapped, ...defaultFieldTriggers]
+    }
+  } catch (err) {
+    console.error("Failed to load admin metrics:", err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('online', updateOnlineStatus)
+  window.addEventListener('offline', updateOnlineStatus)
+  loadMetrics()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('online', updateOnlineStatus)
+  window.removeEventListener('offline', updateOnlineStatus)
+})
+
+const closeSidebar = () => {
+  isSidebarOpen.value = false
+}
 </script>
 
 <style scoped>

@@ -140,6 +140,48 @@
           </div>
         </article>
 
+        <!-- Dynamic Campaign Simulator Placeholder -->
+        <article v-if="!result" class="panel placeholder-card">
+          <div class="panel-head">
+            <RadioTower size="20" style="color: var(--color-primary);" />
+            <h2>Campaign Integration Simulator</h2>
+          </div>
+          <div class="placeholder-body">
+            <p class="placeholder-intro">
+              TerraPlus AI automatically generates multi-channel marketing campaigns tailored to farmer demographics, connectivity status, and literacy levels.
+            </p>
+            
+            <div class="preview-features">
+              <div class="preview-feature">
+                <span class="badge-icon green">💬</span>
+                <div class="feature-info">
+                  <h3>WhatsApp Rich Media</h3>
+                  <p>Delivers localized vernacular copy with customized infographic templates (e.g. crop protection, fertilizer guidance) suited for smartphone users.</p>
+                </div>
+              </div>
+              <div class="preview-feature">
+                <span class="badge-icon blue">✉️</span>
+                <div class="feature-info">
+                  <h3>SMS Text Advisories</h3>
+                  <p>Generates high-impact, offline-safe text copy optimized for feature and keypad phones in areas with weak cellular networks.</p>
+                </div>
+              </div>
+              <div class="preview-feature">
+                <span class="badge-icon gold">📞</span>
+                <div class="feature-info">
+                  <h3>Voice IVR Call Script & Audio</h3>
+                  <p>Synthesizes spoken advisory scripts and triggers outbound automated calls with dynamic audio files for high-value segments.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="onboarding-tip">
+              <div class="tip-header">💡 How to preview:</div>
+              <p>Configure the farmer context parameters on the left (e.g. state, main crop, connectivity, device type) and click <strong>"Generate campaign"</strong>. The AI will output the corresponding SMS, WhatsApp media cards, and Voice script previews right here.</p>
+            </div>
+          </div>
+        </article>
+
         <article class="panel analytics">
           <div class="panel-head">
             <BarChart3 size="20" />
@@ -161,7 +203,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { BarChart3, Image, Languages, RadioTower, RefreshCw, Send, Sprout } from 'lucide-vue-next'
 import Chart from 'chart.js/auto'
-import { fetchCampaignHistory, fetchSegmentStats, predictCampaign } from './api'
+import { fetchCampaignHistory, fetchSegmentStats, predictCampaign } from '../api'
 
 const farmerName = ref('')
 const form = ref({
@@ -280,3 +322,85 @@ onMounted(() => {
   loadAnalytics()
 })
 </script>
+
+<style scoped>
+.placeholder-card {
+  border-left: 4px solid var(--color-primary);
+  background: var(--bg-card);
+}
+.placeholder-intro {
+  color: var(--slate-600);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.preview-features {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.preview-feature {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  background: var(--slate-50);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.preview-feature:hover {
+  transform: translateY(-1px);
+  border-color: var(--slate-300);
+}
+.badge-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.badge-icon.green {
+  background: #e6fdf5;
+}
+.badge-icon.blue {
+  background: #eff6ff;
+}
+.badge-icon.gold {
+  background: #fffbeb;
+}
+.feature-info h3 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--slate-900);
+  margin: 0 0 2px 0;
+}
+.feature-info p {
+  font-size: 12px;
+  color: var(--slate-500);
+  line-height: 1.4;
+  margin: 0;
+}
+.onboarding-tip {
+  padding: 14px;
+  background: var(--emerald-50);
+  border: 1px solid var(--emerald-100);
+  border-radius: var(--radius-md);
+}
+.tip-header {
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: var(--emerald-800);
+}
+.onboarding-tip p {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--emerald-700);
+  margin: 0;
+}
+</style>
+

@@ -22,3 +22,10 @@ export async function fetchCampaignHistory() {
   console.log('Axios /api/campaigns/history response:', response.data)
   return response.data
 }
+
+export async function fetchCampaignMetrics() {
+  const response = await api.get('/api/campaigns/metrics')
+  console.log('Axios /api/campaigns/metrics response:', response.data)
+  return response.data
+}
+
