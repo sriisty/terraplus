@@ -1,23 +1,38 @@
-# Syngenta Track 1: Adaptive Agricultural Campaign Intelligence
+# 🌾 Syngenta Track 1: Adaptive Agricultural Campaign Intelligence
 
-Production-style hackathon MVP for AI-powered agricultural marketing at scale. This is not a chatbot: the app wraps the completed LightGBM engagement model with channel intelligence, RAG agronomy retrieval, hyperlocal vernacular campaign generation, SQLite persistence, and a Vue dashboard.
+Production-style hackathon MVP for AI-powered agricultural marketing at scale. This is not a chatbot — the app wraps a completed LightGBM engagement model with channel intelligence, RAG agronomy retrieval, hyperlocal vernacular campaign generation, SQLite persistence, and a unified Vue application serving both farmers and marketers.
+
+---
+
+## 🚀 Recent Update: Unified App Merge
+
+Both interfaces are now merged into a single frontend application without breaking existing routing or styles:
+
+| Route | Interface | Audience |
+|---|---|---|
+| `/home`, `/selfie` | Farmer App | End-user (localized UI, push notifications, Grower Pride selfie tool) |
+| `/dev-tool` | AI Dashboard | Syngenta marketers — campaign generation & analytics |
+
+---
 
 ## What It Does
 
-- Predicts farmer engagement probability using `backend/models/model_no_leakage.pkl`.
-- Segments farmers into Low, Medium, High, and Very High receptivity tiers.
-- Recommends WhatsApp, SMS, voice call, or fallback channels based on device, literacy, connectivity, and farmer value.
-- Retrieves pest, crop, weather, and low-bandwidth advisory knowledge with LangChain + FAISS, with an offline keyword fallback.
-- Generates SMS, WhatsApp, and voice-call campaign variants in Hindi, Telugu, Tamil, Marathi, Punjabi, or English.
-- Infers hyperlocal language style from state, district/block, device, literacy level, and language preference.
-- Persists prediction logs, campaign history, and generated advisories in SQLite.
-- **Farmer App UI:** Includes Onboarding, Dashboard, and Messages Inbox built in Vue.
-- **Grower Selfie Tool:** An HTML5 Canvas-based offline-capable feature for farmers to generate branded selfies to share on WhatsApp, acting as an AI-powered brand advocacy engine.
-- **Admin Dashboard:** Visualizes campaign performance, open rates by crop, and channel distributions.
+- Predicts farmer engagement probability using `backend/models/model_no_leakage.pkl`
+- Segments farmers into **Low, Medium, High, and Very High** receptivity tiers
+- Recommends WhatsApp, SMS, voice call, or fallback channels based on device, literacy, connectivity, and farmer value
+- Retrieves pest, crop, weather, and low-bandwidth advisory knowledge with **LangChain + FAISS**, with an offline keyword fallback
+- Generates SMS, WhatsApp, and voice-call campaign variants in **Hindi, Telugu, Tamil, Marathi, Punjabi, or English**
+- Infers hyperlocal language style from state, district/block, device, literacy level, and language preference
+- Persists prediction logs, campaign history, and generated advisories in **SQLite**
+- **Farmer App UI** — Onboarding, Dashboard, and Messages Inbox built in Vue
+- **Grower Selfie Tool** — HTML5 Canvas-based offline-capable feature for farmers to generate branded selfies for WhatsApp sharing (AI-powered brand advocacy)
+- **Admin Dashboard** — Visualizes campaign performance, open rates by crop, and channel distributions
+
+---
 
 ## Backend Setup
 
-Use Python 3.11 or 3.12 for the pinned ML stack. The saved LightGBM/scikit-learn artifacts were produced with the standard 3.11-era packages.
+> Use **Python 3.11 or 3.12**. The saved LightGBM/scikit-learn artifacts were produced with the standard 3.11-era packages.
 
 ```bash
 cd backend
@@ -26,33 +41,37 @@ py -3.11 -m venv .venv
 pip install -r requirements.txt
 ```
 
-Optional OpenAI generation:
+### Optional: OpenAI generation
 
 ```bash
 $env:OPENAI_API_KEY="your_key_here"
 $env:OPENAI_MODEL="gpt-4o-mini"
 ```
 
-Run the API:
+### Run the API
 
 ```bash
 uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-API docs:
+API docs available at:
 
-```text
+```
 http://localhost:8000/docs
 ```
 
-Smoke test:
+### Smoke test
 
 ```bash
 cd backend
 py -3 smoke_test.py
 ```
 
+---
+
 ## Frontend Setup
+
+The unified Vue app contains both the mobile mockup and the AI generation dashboard.
 
 ```bash
 cd frontend
@@ -60,19 +79,20 @@ npm install
 npm run dev
 ```
 
-Dashboard:
+| URL | What it is |
+|---|---|
+| `http://localhost:5173` | Mobile Farmer App / Onboarding |
+| `http://localhost:5173/dev-tool` | Marketer AI Dashboard (also reachable via "API Dev Tool" in the top nav) |
 
-```text
-http://localhost:5173
-```
+> Set `VITE_API_BASE_URL=http://localhost:8000` if the backend runs on a different host.
 
-Use `VITE_API_BASE_URL=http://localhost:8000` if the backend runs on a different host.
+---
 
 ## Main API
 
-`POST /api/predict`
+### `POST /api/predict`
 
-Example request:
+**Example request:**
 
 ```json
 {
@@ -96,25 +116,31 @@ Example request:
 }
 ```
 
-Response includes:
+**Response includes:**
 
-- `prediction`: probability, segment, confidence, model metadata.
-- `channel`: recommended channel, timing, frequency, rationale.
-- `vernacular`: inferred language, regional style, complexity level, SMS/voice flags.
-- `rag`: retrieved agronomy advisory and sources.
-- `content`: SMS, WhatsApp, voice script, CTA, generation mode.
+| Field | Contents |
+|---|---|
+| `prediction` | Probability, segment, confidence, model metadata |
+| `channel` | Recommended channel, timing, frequency, rationale |
+| `vernacular` | Inferred language, regional style, complexity level, SMS/voice flags |
+| `rag` | Retrieved agronomy advisory and sources |
+| `content` | SMS, WhatsApp, voice script, CTA, generation mode |
+
+---
 
 ## Architecture
 
-```text
+```
 Farmer context
-  -> LightGBM prediction
-  -> channel recommender
-  -> vernacular inference
-  -> RAG agronomy retrieval
-  -> OpenAI/local content generation
-  -> SQLite campaign/advisory logs
-  -> Vue dashboard
+  → LightGBM prediction
+  → Channel recommender
+  → Vernacular inference
+  → RAG agronomy retrieval
+  → OpenAI / local content generation
+  → SQLite campaign & advisory logs
+  → Vue unified frontend (Farmer UI + AI Dev Tool)
 ```
 
-The backend keeps OpenAI optional for demo reliability. If no key is present, it still produces localized campaign content through deterministic templates.
+---
+
+*Prepared for Syngenta IITM Hackathon 2026*
