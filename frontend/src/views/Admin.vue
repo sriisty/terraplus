@@ -1,271 +1,1038 @@
 <template>
-  <div class="mobile-shell app-screen admin-theme">
-    <div class="status-bar">
-      <span>9:41 AM</span>
-      <span>●●●●○ 4G 🔋 82%</span>
-    </div>
-    
-    <div class="header-nav">
-      <h2>Admin Dashboard</h2>
-      <div class="lang-selector">Rabi 2025–26 · Live</div>
-    </div>
+  <div class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" :class="{ 'sidebar-open': isSidebarOpen }">
+      <div class="sidebar-brand-container">
+        <span class="brand-icon">🌱</span>
+        <span class="brand-name">TerraPlus AI</span>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <ul>
+          <li class="nav-item active">
+            <router-link to="/admin" @click="closeSidebar">
+              <LayoutDashboard :size="18" />
+              <span>Command Center</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/home" @click="closeSidebar">
+              <Users :size="18" />
+              <span>Farmer App</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/selfie" @click="closeSidebar">
+              <Smartphone :size="18" />
+              <span>Grower Pride</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/inbox" @click="closeSidebar">
+              <MessageSquare :size="18" />
+              <span>Farmer Messages</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/dev-tool" @click="closeSidebar">
+              <Settings :size="18" />
+              <span>API Dev Tool</span>
+            </router-link>
+          </li>
+        </ul>
+      </nav>
 
-    <div class="content">
-      <div class="kpi-grid">
-        <div class="kpi-card highlight">
-          <span class="icon">👥</span>
-          <h3>6,000</h3>
-          <p>Total Farmers Reached</p>
-          <small class="positive">↑ 34% vs WhatsApp-only</small>
+      <div class="sidebar-footer">
+        <div class="connection-status" :class="{ 'online': isOnline }">
+          <Wifi v-if="isOnline" :size="14" />
+          <WifiOff v-else :size="14" />
+          <span>{{ isOnline ? 'System Online' : 'Offline Mode' }}</span>
         </div>
-        
-        <div class="kpi-card">
-          <span class="icon">📈</span>
-          <h3>23.1%</h3>
-          <p>Avg Open Rate</p>
-          <small>Target: 30%</small>
+        <p class="footer-meta">Syngenta Hackathon 2026</p>
+      </div>
+    </aside>
+
+    <!-- Overlay for mobile sidebar -->
+    <div v-if="isSidebarOpen" class="sidebar-overlay" @click="isSidebarOpen = false"></div>
+
+    <!-- Main Content Panel -->
+    <main class="main-content-panel">
+      <!-- Top header -->
+      <header class="dashboard-header">
+        <div class="header-left">
+          <button class="sidebar-toggle-btn" @click="isSidebarOpen = !isSidebarOpen" aria-label="Toggle Sidebar">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+          </button>
+          <div>
+            <span class="eyebrow">Track 1: Personalization at Scale</span>
+            <h1 class="header-title">Command Center</h1>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="active-campaign-badge">
+            <span class="pulse-dot"></span>
+            <span>Rabi 2025–26 Campaign Live</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Bento Box Grid -->
+      <div class="bento-grid">
+        <!-- KPI Card 1: Reached -->
+        <div class="card col-span-3 kpi-bento-card">
+          <div class="kpi-icon-wrapper reached">
+            <Users :size="20" />
+          </div>
+          <div class="kpi-data">
+            <span class="kpi-label">Farmers Reached</span>
+            <h3 class="kpi-value">6,240</h3>
+            <span class="kpi-change positive">↑ 34% vs last Rabi</span>
+          </div>
         </div>
 
-        <div class="kpi-card">
-          <span class="icon">🖱️</span>
-          <h3>5.0%</h3>
-          <p>Click-Through Rate</p>
-          <small class="positive">↑ 0.4% this week</small>
+        <!-- KPI Card 2: AI Engagements -->
+        <div class="card col-span-3 kpi-bento-card">
+          <div class="kpi-icon-wrapper interactions">
+            <Zap :size="20" />
+          </div>
+          <div class="kpi-data">
+            <span class="kpi-label">AI Dialogs</span>
+            <h3 class="kpi-value">12,840</h3>
+            <span class="kpi-change positive">94.2% completion</span>
+          </div>
         </div>
 
-        <div class="kpi-card">
-          <span class="icon">🎯</span>
-          <h3>1,521</h3>
-          <p>Newly Reachable Farmers</p>
-          <small>SMS + Offline channel</small>
+        <!-- KPI Card 3: Outbound -->
+        <div class="card col-span-3 kpi-bento-card">
+          <div class="kpi-icon-wrapper outbound">
+            <Send :size="20" />
+          </div>
+          <div class="kpi-data">
+            <span class="kpi-label">Campaign Triggers</span>
+            <h3 class="kpi-value">14 Live</h3>
+            <span class="kpi-change">Active in Agra, Ludhiana</span>
+          </div>
+        </div>
+
+        <!-- KPI Card 4: NPS -->
+        <div class="card col-span-3 kpi-bento-card">
+          <div class="kpi-icon-wrapper nps">
+            <CheckCircle :size="20" />
+          </div>
+          <div class="kpi-data">
+            <span class="kpi-label">Grower Satisfaction</span>
+            <h3 class="kpi-value">84.1%</h3>
+            <span class="kpi-change positive">+5.2% NPS rating</span>
+          </div>
+        </div>
+
+        <!-- Bento Row 2: Card 1 - A/B Routing -->
+        <div class="card col-span-8 ab-test-card">
+          <div class="card-header-custom">
+            <div>
+              <h2 class="card-section-title">Vernacular Message Optimization</h2>
+              <p class="card-section-subtitle">Real-time autonomous reinforcement learning routing</p>
+            </div>
+            <span class="badge badge-success font-mono">AI AUTO-OPTIMIZING</span>
+          </div>
+
+          <div class="ab-comparison-box">
+            <!-- Variant A -->
+            <div class="variant-row" :class="{ 'losing-variant': winningVariant === 'B' }">
+              <div class="variant-meta">
+                <span class="variant-letter font-mono">A</span>
+                <div>
+                  <h4 class="variant-title">Technical Agronomic Copy</h4>
+                  <p class="variant-text">"किसान भाइयों, गेहूं की फसल में पुष्पन अवस्था के दौरान नमी बनाए रखें। फफूंद संक्रमण से बचाव के लिए आज ही टोपीक 15 डब्ल्यूपी का प्रयोग करें।"</p>
+                </div>
+              </div>
+              <div class="variant-metrics">
+                <div class="metric-group">
+                  <span class="metric-num">24.1%</span>
+                  <span class="metric-name">Open Rate</span>
+                </div>
+                <div class="metric-group">
+                  <span class="metric-num">15%</span>
+                  <span class="metric-name">AI Traffic Route</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- VS Divider -->
+            <div class="ab-divider">
+              <span class="divider-text">VS</span>
+            </div>
+
+            <!-- Variant B -->
+            <div class="variant-row winner-row" :class="{ 'winning-variant': winningVariant === 'B' }">
+              <div class="variant-meta">
+                <span class="variant-letter font-mono">B</span>
+                <div>
+                  <h4 class="variant-title">Vernacular Value Proposition Copy (Winning)</h4>
+                  <p class="variant-text">"गेहूं में बाली निकलते समय फसल को फंगस से बचाएं और अधिक पैदावार पाएं। आगरा के सफल किसानों का भरोसा - टोपीक 15 डब्ल्यूपी स्प्रे करें।"</p>
+                </div>
+                <span class="winner-badge">🏆 Winning 2.0x</span>
+              </div>
+              <div class="variant-metrics">
+                <div class="metric-group">
+                  <span class="metric-num highlight-num">48.5%</span>
+                  <span class="metric-name">Open Rate</span>
+                </div>
+                <div class="metric-group">
+                  <span class="metric-num highlight-num">85%</span>
+                  <span class="metric-name">AI Traffic Route</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Traffic Routing Progress Bar -->
+          <div class="routing-visualizer">
+            <div class="routing-labels">
+              <span>Variant A (15%)</span>
+              <span class="bold">AI Vernacular Routing Allocation (85% to Winner)</span>
+              <span>Variant B (85%)</span>
+            </div>
+            <div class="routing-progress-track">
+              <div class="routing-progress-fill A-fill" style="width: 15%"></div>
+              <div class="routing-progress-fill B-fill" style="width: 85%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bento Row 2: Card 2 - Omni-Channel -->
+        <div class="card col-span-4 omni-channel-card">
+          <div class="card-header-custom">
+            <div>
+              <h2 class="card-section-title">Omni-Channel Mix</h2>
+              <p class="card-section-subtitle">Volume routing breakdown</p>
+            </div>
+          </div>
+
+          <div class="channel-distribution-list">
+            <!-- Channel 1: WhatsApp -->
+            <div class="channel-item">
+              <div class="channel-info">
+                <div class="channel-icon whatsapp">💬</div>
+                <div>
+                  <h4 class="channel-name">WhatsApp</h4>
+                  <span class="channel-desc font-mono">Rich Media & Graphics</span>
+                </div>
+              </div>
+              <div class="channel-values">
+                <span class="channel-vol">4,479 (72%)</span>
+                <div class="channel-bar-container">
+                  <div class="channel-bar-fill whatsapp-bar" style="width: 72%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Channel 2: Voice IVR -->
+            <div class="channel-item">
+              <div class="channel-info">
+                <div class="channel-icon voice">📞</div>
+                <div>
+                  <h4 class="channel-name">Voice IVR</h4>
+                  <span class="channel-desc font-mono">Feature Phone Voice Messages</span>
+                </div>
+              </div>
+              <div class="channel-values">
+                <span class="channel-vol">1,028 (16.5%)</span>
+                <div class="channel-bar-container">
+                  <div class="channel-bar-fill voice-bar" style="width: 16.5%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Channel 3: SMS -->
+            <div class="channel-item">
+              <div class="channel-info">
+                <div class="channel-icon sms">✉️</div>
+                <div>
+                  <h4 class="channel-name">SMS Alert</h4>
+                  <span class="channel-desc font-mono">Offline / Low Bandwidth</span>
+                </div>
+              </div>
+              <div class="channel-values">
+                <span class="channel-vol">733 (11.5%)</span>
+                <div class="channel-bar-container">
+                  <div class="channel-bar-fill sms-bar" style="width: 11.5%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="channel-summary-note">
+            <span class="info-icon">ℹ️</span>
+            <p>Voice and SMS channels active automatically for growers flagged in <strong>Offline Status</strong> due to bad cell connection.</p>
+          </div>
+        </div>
+
+        <!-- Bento Row 3: Card 3 - Field Rep Dispatch Triggers -->
+        <div class="card col-span-12 rep-dispatches-card">
+          <div class="card-header-custom flex-row-responsive">
+            <div>
+              <h2 class="card-section-title">Autonomous Field Rep Dispatches</h2>
+              <p class="card-section-subtitle">Digital engagement rules automatically triggering physical agronomic support in the field</p>
+            </div>
+            <div class="rule-indicator-badge">
+              <span>Rule Engine: ACTIVE</span>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Farmer</th>
+                  <th>Location</th>
+                  <th>Digital Trigger Alert</th>
+                  <th>Physical Action Dispatched</th>
+                  <th>Assigned Field Rep</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="trigger in fieldTriggers" :key="trigger.id">
+                  <td class="font-semibold">{{ trigger.farmer }}</td>
+                  <td>{{ trigger.location }}</td>
+                  <td>
+                    <span class="trigger-badge font-mono" :class="trigger.severity">
+                      {{ trigger.triggerText }}
+                    </span>
+                  </td>
+                  <td>{{ trigger.action }}</td>
+                  <td>{{ trigger.rep }}</td>
+                  <td>
+                    <span class="status-badge" :class="trigger.status.toLowerCase().replace(' ', '-')">
+                      {{ trigger.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-      <div class="section-card">
-        <div class="card-header">Open Rate by Crop</div>
-        <div class="bar-chart">
-          <div class="bar-row">
-            <span class="label">Maize</span>
-            <div class="bar-track"><div class="bar-fill" style="width: 35.2%"></div></div>
-            <span class="value">35.2%</span>
-          </div>
-          <div class="bar-row">
-            <span class="label">Mustard</span>
-            <div class="bar-track"><div class="bar-fill" style="width: 25.2%"></div></div>
-            <span class="value">25.2%</span>
-          </div>
-          <div class="bar-row">
-            <span class="label">Wheat</span>
-            <div class="bar-track"><div class="bar-fill" style="width: 23.1%"></div></div>
-            <span class="value">23.1%</span>
-          </div>
-          <div class="bar-row">
-            <span class="label">Potato</span>
-            <div class="bar-track"><div class="bar-fill" style="width: 20.1%"></div></div>
-            <span class="value">20.1%</span>
-          </div>
-          <div class="bar-row">
-            <span class="label">Cumin</span>
-            <div class="bar-track"><div class="bar-fill" style="width: 12.7%"></div></div>
-            <span class="value">12.7%</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="section-card">
-        <div class="card-header">Channel Distribution</div>
-        <div class="pie-legend">
-          <div class="legend-item">
-            <div class="color-dot whatsapp"></div>
-            <span>WhatsApp</span>
-            <strong>4,479</strong>
-          </div>
-          <div class="legend-item">
-            <div class="color-dot sms"></div>
-            <span>SMS/Voice</span>
-            <strong>1,028</strong>
-          </div>
-          <div class="legend-item">
-            <div class="color-dot offline"></div>
-            <span>Offline</span>
-            <strong>493</strong>
-          </div>
-        </div>
-      </div>
-    </div>
+    </main>
   </div>
 </template>
 
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+import { 
+  LayoutDashboard, 
+  Users, 
+  Smartphone, 
+  MessageSquare, 
+  Settings, 
+  Zap, 
+  Send, 
+  CheckCircle,
+  Wifi,
+  WifiOff
+} from 'lucide-vue-next'
+
+const isSidebarOpen = ref(false)
+const isOnline = ref(navigator.onLine)
+const winningVariant = ref('B')
+
+const updateOnlineStatus = () => {
+  isOnline.value = navigator.onLine
+}
+
+onMounted(() => {
+  window.addEventListener('online', updateOnlineStatus)
+  window.addEventListener('offline', updateOnlineStatus)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('online', updateOnlineStatus)
+  window.removeEventListener('offline', updateOnlineStatus)
+})
+
+const closeSidebar = () => {
+  isSidebarOpen.value = false
+}
+
+// Mock database for autonomous field rep dispatches
+const fieldTriggers = ref([
+  {
+    id: 1,
+    farmer: "Ram Singh",
+    location: "Agra, UP (Tehsil Fatehbad)",
+    triggerText: "SMS High Powdery Mildew Risk",
+    severity: "high",
+    action: "Dispatched fungicide brochure & 100ml Topik sample",
+    rep: "Suresh Kumar",
+    status: "Scheduled"
+  },
+  {
+    id: 2,
+    farmer: "Jaspreet Singh",
+    location: "Ludhiana, PB (Tehsil Khanna)",
+    triggerText: "IVR Irrigation Yellowing Alert",
+    severity: "medium",
+    action: "Soil moisture inspection & leaf health check scheduled",
+    rep: "Harpreet Singh",
+    status: "In Progress"
+  },
+  {
+    id: 3,
+    farmer: "Hari Prasad",
+    location: "Patna, BR (Tehsil Danapur)",
+    triggerText: "Selfie Upload: Rust Disease Spotting",
+    severity: "high",
+    action: "Visual validation, chemical solution kit delivery",
+    rep: "Manoj Dwivedi",
+    status: "Completed"
+  },
+  {
+    id: 4,
+    farmer: "Dinesh Patel",
+    location: "Agra, UP (Tehsil Agra)",
+    triggerText: "SMS Dosage Inquiry (Failed attempts)",
+    severity: "low",
+    action: "Personal tutorial visit scheduled for product application",
+    rep: "Suresh Kumar",
+    status: "Scheduled"
+  }
+])
+</script>
+
 <style scoped>
-.app-screen {
-  background: #1e1e2d; /* Admin dark theme */
-  color: white;
-}
-
-.status-bar {
-  color: white;
-}
-
-.header-nav {
+.dashboard-layout {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-  background: #2b2b40;
-  border-bottom: 1px solid #3f3f5a;
+  min-height: 100vh;
+  background-color: var(--slate-50);
 }
 
-.header-nav h2 {
-  margin: 0;
-  font-size: 16px;
+/* Sidebar Styling */
+.admin-sidebar {
+  width: 260px;
+  background-color: var(--slate-900);
   color: white;
-}
-
-.lang-selector {
-  font-size: 12px;
-  color: #a0a0b2;
-  background: #1e1e2d;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.content {
-  padding: 15px;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.kpi-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.kpi-card {
-  background: #2b2b40;
-  padding: 15px;
-  border-radius: 12px;
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
+  border-right: 1px solid var(--slate-800);
+  transition: transform 0.3s ease;
+  z-index: 100;
 }
 
-.kpi-card.highlight {
-  grid-column: span 2;
-  background: linear-gradient(135deg, #1f7a4d, #2e9f68);
+.sidebar-brand-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  padding-left: 12px;
 }
 
-.kpi-card .icon {
-  font-size: 20px;
-  margin-bottom: 10px;
-}
-
-.kpi-card h3 {
-  margin: 0 0 5px 0;
+.brand-icon {
   font-size: 24px;
 }
 
-.kpi-card p {
-  margin: 0 0 10px 0;
-  font-size: 12px;
-  color: #a0a0b2;
+.brand-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--emerald-400);
+  letter-spacing: -0.025em;
 }
 
-.kpi-card.highlight p {
-  color: #e0f2e9;
+.sidebar-nav {
+  flex: 1;
 }
 
-.kpi-card small {
-  font-size: 11px;
-  color: #7a7a92;
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.kpi-card small.positive {
-  color: #4cd964;
-}
-.kpi-card.highlight small.positive {
-  color: #fff;
-}
-
-.section-card {
-  background: #2b2b40;
-  padding: 15px;
-  border-radius: 12px;
-  margin-bottom: 15px;
-}
-
-.card-header {
-  font-size: 11px;
-  font-weight: 700;
-  color: #888;
-  letter-spacing: 0.5px;
-  margin-bottom: 15px;
-  text-transform: uppercase;
-}
-
-.bar-row {
+.sidebar-nav .nav-item a {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
-  gap: 10px;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  color: var(--slate-300);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
 
-.bar-row .label {
-  width: 60px;
-  font-size: 12px;
-  color: #a0a0b2;
+.sidebar-nav .nav-item a:hover {
+  background-color: var(--slate-800);
+  color: white;
 }
 
-.bar-track {
-  flex: 1;
-  height: 8px;
-  background: #1e1e2d;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  background: #4cd964;
-  border-radius: 4px;
-}
-
-.bar-row .value {
-  width: 40px;
-  text-align: right;
-  font-size: 12px;
+.sidebar-nav .nav-item.active a {
+  background-color: var(--emerald-900);
+  color: var(--emerald-200);
   font-weight: 600;
 }
 
-.pie-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.sidebar-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--slate-800);
+  padding-top: 20px;
+  padding-left: 12px;
 }
 
-.legend-item {
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: #ef444420;
+  color: #ef4444;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.connection-status.online {
+  background-color: #10b98120;
+  color: var(--emerald-400);
+}
+
+.footer-meta {
+  color: var(--slate-500);
+  font-size: 11px;
+  margin: 0;
+}
+
+.main-content-panel {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+  max-width: calc(100vw - 260px);
+}
+
+/* Header Styles */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.header-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--slate-900);
+}
+
+.sidebar-toggle-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 24px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  min-height: auto;
+}
+
+.sidebar-toggle-btn .bar {
+  width: 100%;
+  height: 2px;
+  background-color: var(--slate-800);
+  border-radius: 2px;
+}
+
+.active-campaign-badge {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate-700);
+  box-shadow: var(--shadow-sm);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-primary);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  50% { transform: scale(1.3); opacity: 0.4; }
+  100% { transform: scale(0.9); opacity: 0.9; }
+}
+
+/* KPI Bento Cards */
+.kpi-bento-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.kpi-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+}
+
+.kpi-icon-wrapper.reached { background-color: var(--emerald-50); color: var(--emerald-600); }
+.kpi-icon-wrapper.interactions { background-color: #fef3c7; color: #d97706; }
+.kpi-icon-wrapper.outbound { background-color: #e0f2fe; color: #0284c7; }
+.kpi-icon-wrapper.nps { background-color: #f3e8ff; color: #7c3aed; }
+
+.kpi-data {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  font-size: 12px;
+  color: var(--slate-500);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kpi-value {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 2px 0;
+  color: var(--slate-900);
+  line-height: 1.2;
+}
+
+.kpi-change {
+  font-size: 11px;
+  color: var(--slate-400);
+  font-weight: 500;
+}
+
+.kpi-change.positive {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* A/B Test Card */
+.card-header-custom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--slate-900);
+  margin-bottom: 4px;
+}
+
+.card-section-subtitle {
+  font-size: 13px;
+  color: var(--slate-500);
+  margin: 0;
+}
+
+.ab-comparison-box {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.variant-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--slate-50);
+  transition: all 0.2s ease;
+}
+
+.variant-row.winner-row {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-light);
+  position: relative;
+}
+
+.variant-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+}
+
+.variant-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: var(--slate-200);
+  color: var(--slate-700);
+  border-radius: 50%;
+  font-weight: 700;
   font-size: 14px;
 }
 
-.legend-item span {
-  flex: 1;
-  color: #a0a0b2;
+.winner-row .variant-letter {
+  background-color: var(--color-primary);
+  color: white;
 }
 
-.legend-item strong {
+.variant-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--slate-800);
+  margin-bottom: 4px;
+}
+
+.winner-row .variant-title {
+  color: var(--emerald-900);
+}
+
+.variant-text {
+  font-size: 13px;
+  color: var(--slate-600);
+  font-style: italic;
+  max-width: 480px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.winner-row .variant-text {
+  color: var(--emerald-800);
+}
+
+.variant-metrics {
+  display: flex;
+  gap: 24px;
+  padding-left: 20px;
+}
+
+.metric-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.metric-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--slate-800);
+}
+
+.highlight-num {
+  color: var(--emerald-800);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.metric-name {
+  font-size: 11px;
+  color: var(--slate-400);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.winner-row .metric-name {
+  color: var(--emerald-600);
+}
+
+.ab-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 50%;
+  left: 5%;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: none; /* simple stacked format is cleaner */
+}
+
+.winner-badge {
+  position: absolute;
+  top: -12px;
+  right: 18px;
+  background-color: #d97706;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  text-transform: uppercase;
+}
+
+.routing-visualizer {
+  margin-top: 24px;
+  padding: 16px;
+  background-color: var(--slate-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.routing-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--slate-500);
+  margin-bottom: 8px;
   font-weight: 600;
 }
 
-.color-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 6px;
+.routing-labels .bold {
+  color: var(--slate-800);
+  text-transform: uppercase;
 }
 
-.whatsapp { background: #25d366; }
-.sms { background: #34b7f1; }
-.offline { background: #f2c14e; }
+.routing-progress-track {
+  height: 12px;
+  background-color: var(--slate-200);
+  border-radius: 999px;
+  display: flex;
+  overflow: hidden;
+}
+
+.routing-progress-fill.A-fill {
+  background-color: var(--slate-400);
+}
+
+.routing-progress-fill.B-fill {
+  background-color: var(--color-primary);
+}
+
+/* Omni-Channel Card */
+.channel-distribution-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.channel-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.channel-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.channel-icon {
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.channel-icon.whatsapp { background-color: #dcfce7; color: #15803d; }
+.channel-icon.voice { background-color: #fef3c7; color: #b45309; }
+.channel-icon.sms { background-color: #e0f2fe; color: #0369a1; }
+
+.channel-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--slate-800);
+  line-height: 1.2;
+}
+
+.channel-desc {
+  font-size: 11px;
+  color: var(--slate-400);
+}
+
+.channel-values {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-left: 44px;
+}
+
+.channel-vol {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate-700);
+  white-space: nowrap;
+}
+
+.channel-bar-container {
+  flex: 1;
+  height: 6px;
+  background-color: var(--slate-100);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.channel-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.whatsapp-bar { background-color: #22c55e; }
+.voice-bar { background-color: #f59e0b; }
+.sms-bar { background-color: #06b6d4; }
+
+.channel-summary-note {
+  display: flex;
+  gap: 10px;
+  background-color: var(--slate-50);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.info-icon {
+  font-size: 16px;
+}
+
+.channel-summary-note p {
+  font-size: 12px;
+  color: var(--slate-500);
+  line-height: 1.4;
+}
+
+/* Rep dispatches */
+.flex-row-responsive {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rule-indicator-badge {
+  padding: 6px 12px;
+  background-color: var(--color-primary-light);
+  border: 1px solid var(--emerald-200);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--emerald-800);
+}
+
+.trigger-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trigger-badge.high { background-color: #fee2e2; color: #991b1b; }
+.trigger-badge.medium { background-color: #ffedd5; color: #9a3412; }
+.trigger-badge.low { background-color: #f1f5f9; color: #334155; }
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge.scheduled { background-color: #e0f2fe; color: #0369a1; }
+.status-badge.in-progress { background-color: #fef3c7; color: #b45309; }
+.status-badge.completed { background-color: #dcfce7; color: #15803d; }
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .dashboard-layout {
+    flex-direction: column;
+  }
+  
+  .admin-sidebar {
+    width: 100%;
+    transform: translateY(-100%);
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    padding-top: 80px;
+  }
+
+  .admin-sidebar.sidebar-open {
+    transform: translateY(0);
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+  }
+
+  .main-content-panel {
+    max-width: 100%;
+    padding: 24px;
+  }
+
+  .sidebar-toggle-btn {
+    display: flex;
+    z-index: 101;
+  }
+
+  .dashboard-header {
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ab-comparison-box {
+    gap: 12px;
+  }
+  .variant-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .variant-metrics {
+    padding-left: 0;
+    width: 100%;
+    justify-content: space-between;
+    border-top: 1px dashed var(--color-border);
+    padding-top: 12px;
+  }
+  .flex-row-responsive {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
 </style>

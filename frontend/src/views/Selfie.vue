@@ -1,64 +1,95 @@
 <template>
-  <div class="mobile-shell app-screen">
-    <div class="status-bar">
-      <span>9:41 AM</span>
-      <span>●●●●○ 4G 🔋 82%</span>
-    </div>
-    
-    <div class="header-nav">
-      <router-link to="/home" class="back-btn">← Back</router-link>
-      <h2>Grower Pride 📸</h2>
-      <div style="width: 50px;"></div>
-    </div>
+  <div class="selfie-page-container">
+    <!-- Header Nav -->
+    <header class="selfie-header">
+      <router-link to="/home" class="back-btn">
+        <ArrowLeft :size="20" />
+        <span>Back to Home</span>
+      </router-link>
+      <h2 class="header-title">Grower Pride</h2>
+      <div class="header-spacer"></div>
+    </header>
 
-    <div class="content">
-      <div class="intro">
-        <h3>Show your pride!</h3>
-        <p>Take a selfie and share your harvest with the community.</p>
-      </div>
+    <div class="selfie-main">
+      <!-- Input Panel -->
+      <section class="selfie-form-panel card">
+        <div class="intro">
+          <div class="badge badge-success mb-2">📸 AI Grower Studio</div>
+          <h3 class="form-title">Show Your Pride!</h3>
+          <p class="form-subtitle">Create and share your personalized harvest poster with the community.</p>
+        </div>
 
-      <div class="form-group">
-        <label>I AM PROUDLY GROWING</label>
-        <select v-model="crop" @change="drawCanvas">
-          <option>🌾 Wheat</option>
-          <option>🌽 Maize</option>
-          <option>🌼 Mustard</option>
-          <option>🥔 Potato</option>
-        </select>
-      </div>
+        <div class="form-group">
+          <label for="crop-select">I AM PROUDLY GROWING</label>
+          <select id="crop-select" v-model="crop" @change="drawCanvas" class="premium-select">
+            <option value="🌾 Wheat">🌾 Wheat (गेहूं)</option>
+            <option value="🌽 Maize">🌽 Maize (मक्का)</option>
+            <option value="🌼 Mustard">🌼 Mustard (सरसों)</option>
+            <option value="🥔 Potato">🥔 Potato (आलू)</option>
+          </select>
+        </div>
 
-      <div class="form-group">
-        <label>MY TRUSTED BRAND</label>
-        <select v-model="brand" @change="drawCanvas">
-          <option>Topik 15 WP</option>
-          <option>Amistar Top</option>
-          <option>Actara 25 WG</option>
-          <option>Score 250 EC</option>
-        </select>
-      </div>
+        <div class="form-group">
+          <label for="brand-select">MY TRUSTED BRAND</label>
+          <select id="brand-select" v-model="brand" @change="drawCanvas" class="premium-select">
+            <option value="Topik 15 WP">Topik 15 WP (Fungicide)</option>
+            <option value="Amistar Top">Amistar Top (Fungicide)</option>
+            <option value="Actara 25 WG">Actara 25 WG (Insecticide)</option>
+            <option value="Score 250 EC">Score 250 EC (Fungicide)</option>
+          </select>
+        </div>
 
-      <div class="upload-area" v-if="!imageLoaded" @click="$refs.fileInput.click()">
-        <span class="icon">📷</span>
-        <p>Tap to upload or take a selfie</p>
-        <input type="file" ref="fileInput" accept="image/*" style="display: none;" @change="handleFileUpload" />
-      </div>
+        <div v-if="!imageLoaded" class="upload-area" @click="$refs.fileInput.click()">
+          <div class="upload-icon-circle">
+            <Camera :size="32" />
+          </div>
+          <p class="upload-text">Tap to take a selfie or upload crop photo</p>
+          <span class="upload-subtext">Supports PNG, JPG, JPEG</span>
+          <input type="file" ref="fileInput" accept="image/*" style="display: none;" @change="handleFileUpload" />
+        </div>
 
-      <div class="preview-area" v-show="imageLoaded">
-        <canvas ref="canvasEl" width="1080" height="1080" style="width: 100%; border-radius: 12px;"></canvas>
-        
-        <div class="actions">
-          <button class="btn-outline" @click="resetImage">Retake</button>
-          <button class="btn-primary" @click="shareImage">
-            <span class="icon">📱</span> Share to WhatsApp
+        <div v-else class="upload-meta-info">
+          <div class="success-upload-indicator">
+            <span class="indicator-dot"></span>
+            <span>Image uploaded successfully</span>
+          </div>
+          <button class="btn btn-secondary btn-full" @click="resetImage">
+            <RefreshCw :size="16" />
+            <span>Upload Different Photo</span>
           </button>
         </div>
-      </div>
+      </section>
+
+      <!-- Preview Canvas Panel -->
+      <section class="selfie-preview-panel card">
+        <h4 class="preview-title">Live Poster Preview</h4>
+        
+        <div class="canvas-wrapper">
+          <canvas ref="canvasEl" width="1080" height="1080" class="canvas-element"></canvas>
+          <div v-if="!imageLoaded" class="canvas-placeholder">
+            <Camera :size="48" class="placeholder-icon" />
+            <p>Upload a photo to preview your poster</p>
+          </div>
+        </div>
+
+        <div class="preview-actions" v-if="imageLoaded">
+          <button class="btn btn-primary btn-share" @click="shareImage">
+            <Share2 :size="18" />
+            <span>Share with Friends</span>
+          </button>
+          <button class="btn btn-secondary btn-download" @click="downloadImageDirect" title="Download Image">
+            <Download :size="18" />
+            <span>Download</span>
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { ArrowLeft, Camera, Share2, Download, RefreshCw } from 'lucide-vue-next'
 
 const fileInput = ref(null)
 const canvasEl = ref(null)
@@ -87,9 +118,12 @@ function handleFileUpload(event) {
 function resetImage() {
   imageLoaded.value = false
   userImage.value = null
-  fileInput.value.value = ''
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
 }
 
+// Canvas rendering with premium typography and Syngenta branding layout
 function drawCanvas() {
   if (!userImage.value || !canvasEl.value) return
 
@@ -99,7 +133,7 @@ function drawCanvas() {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-  // Draw user image, cover style
+  // Draw user image with cover style (centered crop)
   const size = canvas.width
   const scale = Math.max(size / userImage.value.width, size / userImage.value.height)
   const x = (size / 2) - (userImage.value.width / 2) * scale
@@ -107,190 +141,352 @@ function drawCanvas() {
   
   ctx.drawImage(userImage.value, x, y, userImage.value.width * scale, userImage.value.height * scale)
 
-  // Draw overlay gradient at bottom
-  const gradient = ctx.createLinearGradient(0, size * 0.6, 0, size)
-  gradient.addColorStop(0, 'rgba(0,0,0,0)')
-  gradient.addColorStop(1, 'rgba(0,100,50,0.8)') // Syngenta green tint
+  // Draw modern dark gradient overlay at the bottom 45% of the canvas
+  const gradient = ctx.createLinearGradient(0, size * 0.55, 0, size)
+  gradient.addColorStop(0, 'rgba(15, 23, 42, 0)') // Slate-900 transparent
+  gradient.addColorStop(0.5, 'rgba(6, 78, 59, 0.65)') // Syngenta emerald-900 deep tint
+  gradient.addColorStop(1, 'rgba(2, 8, 23, 0.95)') // Dark slate base
   ctx.fillStyle = gradient
-  ctx.fillRect(0, size * 0.6, size, size * 0.4)
+  ctx.fillRect(0, size * 0.55, size, size * 0.45)
 
-  // Draw Badge Box
+  // Draw Syngenta Emerald Stripe Accent
+  ctx.fillStyle = '#059669' // Syngenta Emerald Green
+  ctx.fillRect(60, size - 310, 8, 230) // Vertical green line bar
+
+  // Draw Eyebrow (PROUD SYNGENTA GROWER)
+  ctx.fillStyle = '#10b981' // emerald-400
+  ctx.font = 'bold 32px Inter, sans-serif'
+  ctx.fillText('PROUD SYNGENTA GROWER', 90, size - 265)
+
+  // Draw main Crop Text
+  const cropClean = crop.value.replace(/[^a-zA-Z\s]/g, '').trim()
   ctx.fillStyle = '#ffffff'
-  ctx.roundRect = ctx.roundRect || function(x, y, w, h, r) {
-    this.beginPath();
-    this.moveTo(x + r, y);
-    this.arcTo(x + w, y, x + w, y + h, r);
-    this.arcTo(x + w, y + h, x, y + h, r);
-    this.arcTo(x, y + h, x, y, r);
-    this.arcTo(x, y, x + w, y, r);
-    this.closePath();
-    return this;
-  }
+  ctx.font = '800 82px Inter, sans-serif'
+  ctx.fillText(`Growing ${cropClean}`, 90, size - 170)
   
-  ctx.roundRect(40, size - 260, size - 80, 220, 30)
-  ctx.fill()
+  // Draw Brand / Protection Badge Text
+  ctx.fillStyle = '#cbd5e1' // slate-300
+  ctx.font = '600 40px Inter, sans-serif'
+  ctx.fillText(`Protected by: ${brand.value}`, 90, size - 105)
 
-  // Draw Logo (Mock Text Logo)
-  ctx.fillStyle = '#1f7a4d'
-  ctx.font = 'bold 50px sans-serif'
-  ctx.fillText('Syngenta', 80, size - 170)
+  // Draw Syngenta Brandmark logo in bottom right
+  ctx.fillStyle = '#10b981' // emerald-400
+  ctx.font = 'bold 44px Inter, sans-serif'
+  ctx.fillText('Syngenta', size - 280, size - 170)
 
-  // Draw Text
-  ctx.fillStyle = '#333333'
-  ctx.font = 'bold 70px sans-serif'
-  ctx.fillText(`Proud to grow ${crop.value.replace(/[^a-zA-Z\s]/g, '').trim()}`, 80, size - 80)
-  
-  // Draw Brand Badge
-  ctx.fillStyle = '#f2c14e'
-  ctx.roundRect(size - 400, size - 200, 320, 80, 20)
-  ctx.fill()
-  
-  ctx.fillStyle = '#333'
-  ctx.font = 'bold 36px sans-serif'
-  ctx.fillText(`Uses: ${brand.value}`, size - 370, size - 145)
+  ctx.fillStyle = '#ffffff'
+  ctx.font = '500 24px Inter, sans-serif'
+  ctx.fillText('TERRAPLUS AI', size - 280, size - 130)
 }
 
+// Web Share integration with WhatsApp and download fallbacks
 function shareImage() {
   if (!canvasEl.value) return
-  const dataUrl = canvasEl.value.toDataURL('image/jpeg', 0.8)
   
-  // Trigger download (In a real app, we'd use Web Share API or send to server)
+  canvasEl.value.toBlob(async (blob) => {
+    if (!blob) return
+    
+    const cropClean = crop.value.replace(/[^a-zA-Z\s]/g, '').trim()
+    const shareText = `I am proud to share my harvest! Growing ${cropClean} using Syngenta's ${brand.value}. Created via TerraPlus AI. #Syngenta #GrowerPride`
+    const file = new File([blob], 'my_syngenta_harvest.jpg', { type: 'image/jpeg' })
+
+    // Check for native share support of files
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'My Syngenta Harvest',
+          text: shareText
+        })
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Error sharing image natively:', err)
+          fallbackShare(blob, shareText)
+        }
+      }
+    } else {
+      // Fallback
+      fallbackShare(blob, shareText)
+    }
+  }, 'image/jpeg', 0.9)
+}
+
+function fallbackShare(blob, text) {
+  // Trigger file download
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.download = 'my_syngenta_harvest.jpg'
+  link.href = url
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+
+  // Trigger WhatsApp Web share message fallback
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text + '\n\n[Attach the downloaded my_syngenta_harvest.jpg image]')}`
+  window.open(whatsappUrl, '_blank')
+
+  alert('Your custom Grower Pride poster was downloaded! Directing you to WhatsApp to share the message. Attach your downloaded photo to complete the share.')
+}
+
+function downloadImageDirect() {
+  if (!canvasEl.value) return
+  const dataUrl = canvasEl.value.toDataURL('image/jpeg', 0.95)
   const link = document.createElement('a')
   link.download = 'my_syngenta_harvest.jpg'
   link.href = dataUrl
   link.click()
-  
-  alert('Image downloaded! You can now share it directly to WhatsApp.')
 }
 </script>
 
 <style scoped>
-.app-screen {
-  background: white;
+.selfie-page-container {
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--slate-50);
 }
 
-.header-nav {
+/* Header styling */
+.selfie-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  background: white;
-  border-bottom: 1px solid #eee;
-}
-
-.header-nav h2 {
-  margin: 0;
-  font-size: 18px;
-  color: #1f7a4d;
+  padding: 16px 24px;
+  background-color: white;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-decoration: none;
-  color: #666;
+  color: var(--slate-600);
   font-weight: 600;
   font-size: 14px;
+  transition: color 0.15s ease;
 }
 
-.content {
-  padding: 20px;
-  flex: 1;
-  overflow-y: auto;
+.back-btn:hover {
+  color: var(--color-primary);
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--slate-900);
+  text-align: center;
+}
+
+.header-spacer {
+  width: 120px;
+}
+
+@media (max-width: 640px) {
+  .header-spacer {
+    display: none;
+  }
+}
+
+/* Main Layout Grid */
+.selfie-main {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 24px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 32px auto;
+  padding: 0 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .selfie-main {
+    grid-template-columns: 1fr;
+    margin: 16px auto;
+    padding: 0 16px;
+    gap: 16px;
+  }
+}
+
+/* Forms */
+.selfie-form-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .intro {
-  margin-bottom: 25px;
-}
-
-.intro h3 {
-  margin: 0 0 5px 0;
-  font-size: 22px;
-}
-
-.intro p {
-  color: #666;
-  margin: 0;
-  font-size: 14px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  color: #888;
   margin-bottom: 8px;
-  letter-spacing: 0.5px;
 }
 
-select {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-  background: white;
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+.form-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--slate-900);
+  margin-bottom: 4px;
+}
+
+.form-subtitle {
+  font-size: 13px;
+  color: var(--slate-500);
+  line-height: 1.4;
+}
+
+.premium-select {
+  background-color: var(--slate-50);
+  border: 1px solid var(--color-border);
+  font-weight: 600;
 }
 
 .upload-area {
-  margin-top: 30px;
-  border: 2px dashed #1f7a4d;
-  background: #eaf5ef;
-  border-radius: 12px;
-  padding: 40px 20px;
+  border: 2px dashed var(--color-primary);
+  background-color: var(--color-primary-light);
+  border-radius: var(--radius-md);
+  padding: 32px 16px;
   text-align: center;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  transition: all 0.2s ease;
 }
 
-.upload-area .icon {
-  font-size: 48px;
+.upload-area:hover {
+  background-color: var(--emerald-100);
 }
 
-.upload-area p {
-  color: #1f7a4d;
-  font-weight: 600;
-  margin: 0;
-}
-
-.preview-area {
-  margin-top: 20px;
-}
-
-.actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 15px;
-}
-
-.btn-outline {
-  padding: 15px;
-  border: 1px solid #1f7a4d;
-  color: #1f7a4d;
-  background: white;
-  border-radius: 12px;
-  font-weight: 600;
-  flex: 1;
-}
-
-.btn-primary {
-  padding: 15px;
-  background: #25d366; /* WhatsApp Green */
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
-  flex: 2;
+.upload-icon-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: white;
+  color: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.upload-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--emerald-800);
+}
+
+.upload-subtext {
+  font-size: 11px;
+  color: var(--slate-500);
+}
+
+.upload-meta-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.success-upload-indicator {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  font-size: 13px;
+  color: var(--emerald-800);
+  font-weight: 600;
+  background-color: var(--color-primary-light);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--emerald-200);
+}
+
+.indicator-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--color-primary);
+  border-radius: 50%;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* Preview Canvas Panel */
+.selfie-preview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--slate-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background-color: var(--slate-100);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.canvas-element {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.canvas-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--slate-400);
+  padding: 24px;
+  text-align: center;
+  gap: 12px;
+}
+
+.placeholder-icon {
+  opacity: 0.4;
+}
+
+.canvas-placeholder p {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-share {
+  flex: 1.8;
+}
+
+.btn-download {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .preview-actions {
+    flex-direction: column;
+  }
 }
 </style>

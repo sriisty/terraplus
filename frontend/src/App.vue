@@ -40,17 +40,22 @@ const showDevNav = computed(() => route.path !== '/dev-tool')
 
 /* Mobile Mock Styles */
 .mobile-shell {
-  width: 375px;
-  height: 812px;
-  margin: 20px auto;
-  border: 12px solid #222;
-  border-radius: 40px;
-  overflow: hidden;
-  position: relative;
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  margin: 0 auto;
   background: #f8f9fa;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  box-shadow: 0 0 30px rgba(0,0,0,0.05);
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+@media (max-width: 480px) {
+  .mobile-shell {
+    max-width: 100%;
+    box-shadow: none;
+  }
 }
 
 .status-bar {
