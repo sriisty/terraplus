@@ -27,7 +27,7 @@ def get_farmer(grower_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/", summary="Create or update a farmer profile", status_code=201)
-def upsert_farmer(profile: FarmerProfile, db: Session = Depends(get_db)):
+async def upsert_farmer(profile: FarmerProfile, db: Session = Depends(get_db)):
     """
     Create a new farmer or update an existing one (matched on grower_id).
     """
@@ -44,6 +44,7 @@ def upsert_farmer(profile: FarmerProfile, db: Session = Depends(get_db)):
 
     farmer.state        = profile.state
     farmer.district     = profile.district
+    farmer.name         = profile.name
     farmer.tehsil_block = profile.tehsil_block
     farmer.village      = profile.village
     farmer.language     = profile.language
@@ -61,6 +62,18 @@ def upsert_farmer(profile: FarmerProfile, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(farmer)
+
+    # Broadcast active farmer update to WebSockets
+    try:
+        from routers.realtime import manager
+        await manager.broadcast({
+            "type": "active-farmer-updated",
+            "data": _farmer_to_dict(farmer)
+        })
+    except Exception as exc:
+        import logging
+        logging.getLogger("syngenta.api").warning(f"Could not broadcast active-farmer-updated event: {exc}")
+
     return _farmer_to_dict(farmer)
 
 

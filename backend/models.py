@@ -60,6 +60,7 @@ class Campaign(Base):
     predicted_score  = Column(Float, nullable=True)
     segment          = Column(String, nullable=True)
     actual_clicked   = Column(Boolean, nullable=True)
+    audio_file       = Column(String, nullable=True)
     sent_at          = Column(DateTime, nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow)
 

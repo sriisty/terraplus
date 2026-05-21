@@ -13,6 +13,7 @@ class FarmerProfile(BaseModel):
     """Raw farmer, geography, crop, device, and campaign attributes."""
 
     grower_id: Optional[str] = Field(None, description="Unique grower identifier")
+    name: Optional[str] = Field(None, description="Farmer display name")
     state: Optional[str] = None
     district: Optional[str] = None
     tehsil_block: Optional[str] = Field(None, description="Tehsil, taluk, mandal, or block")

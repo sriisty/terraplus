@@ -1,7 +1,15 @@
 import axios from 'axios'
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname
+    return `${window.location.protocol}//${host}:8000`
+  }
+  return 'http://127.0.0.1:8000'
+}
+
+export const API_BASE_URL = getApiBaseUrl()
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -42,9 +50,13 @@ export async function fetchSegmentStats() {
   }
 }
 
-export async function fetchCampaignHistory(limit = 20) {
+export async function fetchCampaignHistory(limit = 20, grower_id = null) {
   try {
-    const { data } = await api.get('/api/campaigns/history', { params: { limit } })
+    const params = { limit }
+    if (grower_id) {
+      params.grower_id = grower_id
+    }
+    const { data } = await api.get('/api/campaigns/history', { params })
     console.log('Axios /api/campaigns/history response:', data)
     return Array.isArray(data) ? data : []
   } catch (err) {
@@ -55,12 +67,60 @@ export async function fetchCampaignHistory(limit = 20) {
 export function resolveMediaUrl(path) {
   if (!path) return ''
   if (/^https?:\/\//i.test(path)) return path
-  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`
+  // The backend audio_service returns paths like "/audio/file.mp3".
+  // If a bare filename is passed (no leading slash), prepend "/audio/".
+  let cleanPath = path
+  if (!cleanPath.startsWith('/')) {
+    cleanPath = `/audio/${cleanPath}`
+  }
+  return `${API_BASE_URL}${cleanPath}`
 }
 
 export async function fetchCampaignMetrics() {
   const response = await api.get('/api/campaigns/metrics')
   console.log('Axios /api/campaigns/metrics response:', response.data)
   return response.data
+}
+
+export async function recordCampaignClick(campaignId, clicked = true) {
+  try {
+    const { data } = await api.patch(`/api/campaigns/${campaignId}/clicked`, null, {
+      params: { clicked }
+    })
+    console.log('Axios PATCH clicked response:', data)
+    return data
+  } catch (err) {
+    throw new Error(describeError(err, 'Failed to record campaign click'))
+  }
+}
+
+export async function upsertFarmer(profile) {
+  try {
+    const { data } = await api.post('/api/farmers', profile)
+    console.log('Axios POST /api/farmers response:', data)
+    return data
+  } catch (err) {
+    throw new Error(describeError(err, 'Failed to upsert farmer profile'))
+  }
+}
+
+export async function fetchFarmerProfile(growerId) {
+  try {
+    const { data } = await api.get(`/api/farmers/${growerId}`)
+    console.log('Axios GET /api/farmers/:growerId response:', data)
+    return data
+  } catch (err) {
+    throw new Error(describeError(err, 'Failed to fetch farmer profile'))
+  }
+}
+
+export async function fetchDashboardStats() {
+  try {
+    const { data } = await api.get('/api/dashboard/stats')
+    console.log('Axios GET /api/dashboard/stats response:', data)
+    return data
+  } catch (err) {
+    throw new Error(describeError(err, 'Failed to load dashboard stats'))
+  }
 }
 

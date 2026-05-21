@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import sys
 from pathlib import Path
@@ -64,7 +65,7 @@ def _get_predictor():
 
 
 @router.post("/predict", response_model=PredictionResponse, summary="Predict and generate adaptive campaign")
-def predict(request: PredictionRequest, db: Session = Depends(get_db)):
+async def predict(request: PredictionRequest, db: Session = Depends(get_db)):
     predictor, recommender, generator, rag_service, vernacular_service, urgency_service, audio_service = _get_predictor()
     farmer_dict = {k: v for k, v in request.farmer.model_dump().items() if v is not None}
 
@@ -121,7 +122,7 @@ def predict(request: PredictionRequest, db: Session = Depends(get_db)):
     _persist_prediction(db, farmer_dict, pred, channel, content, rag)
     reasoning = _engagement_reasoning(farmer_dict, pred, channel, urgency, rag)
 
-    return PredictionResponse(
+    response_data = PredictionResponse(
         grower_id=farmer_dict.get("grower_id"),
         prediction=EngagementPrediction(**pred),
         channel=ChannelRecommendation(**channel),
@@ -132,11 +133,25 @@ def predict(request: PredictionRequest, db: Session = Depends(get_db)):
         content=ContentRecommendation(**content),
     )
 
+    # Broadcast campaign to WebSockets
+    try:
+        from routers.realtime import manager
+        await manager.broadcast({
+            "type": "campaign-generated",
+            "data": response_data.model_dump()
+        })
+    except Exception as exc:
+        # Fallback if broadcast fails so API call succeeds
+        import logging
+        logging.getLogger("syngenta.api").warning(f"Could not broadcast campaign-generated event: {exc}")
+
+    return response_data
+
 
 @router.post("/predict/batch", response_model=BatchPredictionResponse, summary="Batch farmer predictions")
-def batch_predict(request: BatchPredictionRequest, db: Session = Depends(get_db)):
+async def batch_predict(request: BatchPredictionRequest, db: Session = Depends(get_db)):
     results = [
-        predict(PredictionRequest(farmer=farmer, farmer_name="Kisan"), db)
+        await predict(PredictionRequest(farmer=farmer, farmer_name="Kisan"), db)
         for farmer in request.farmers
     ]
     return BatchPredictionResponse(total=len(results), results=results)
@@ -200,6 +215,21 @@ def _persist_prediction(db: Session, farmer_dict: dict, pred: dict, channel: dic
             voice_script=content["voice_script"],
             audio_file=content.get("audio_file"),
             rag_sources_json=json.dumps(rag.get("sources", []), ensure_ascii=False),
+        ))
+        db.add(models.Campaign(
+            farmer_id=farmer.id,
+            product=farmer_dict.get("campaign_product"),
+            campaign_crop=farmer_dict.get("campaign_crop") or farmer_dict.get("main_crop"),
+            channel=channel["primary_channel"],
+            message=content["primary_message"],
+            sms_message=content["sms"],
+            whatsapp_message=content["whatsapp"],
+            voice_script=content["voice_script"],
+            rag_summary=rag.get("advisory_summary"),
+            predicted_score=pred["engagement_probability"],
+            segment=pred["segment"],
+            audio_file=content.get("audio_file"),
+            sent_at=datetime.utcnow(),
         ))
         db.commit()
     except Exception:

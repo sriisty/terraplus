@@ -81,50 +81,50 @@
       <!-- Bento Box Grid -->
       <div class="bento-grid">
         <!-- KPI Card 1: Reached -->
-        <div class="card col-span-3 kpi-bento-card">
+        <div class="card col-span-3 kpi-bento-card" :class="{ 'pulse-highlight': pulseKpi }">
           <div class="kpi-icon-wrapper reached">
             <Users :size="20" />
           </div>
           <div class="kpi-data">
-            <span class="kpi-label">Farmers Reached</span>
+            <span class="kpi-label">Farmers Onboarded</span>
             <h3 class="kpi-value">{{ kpiReached.toLocaleString() }}</h3>
-            <span class="kpi-change positive">↑ 34% vs last Rabi</span>
+            <span class="kpi-change positive">Live from database</span>
           </div>
         </div>
 
         <!-- KPI Card 2: AI Engagements -->
-        <div class="card col-span-3 kpi-bento-card">
+        <div class="card col-span-3 kpi-bento-card" :class="{ 'pulse-highlight': pulseKpi }">
           <div class="kpi-icon-wrapper interactions">
             <Zap :size="20" />
           </div>
           <div class="kpi-data">
-            <span class="kpi-label">AI Dialogs</span>
+            <span class="kpi-label">Campaigns Generated</span>
             <h3 class="kpi-value">{{ kpiDialogs.toLocaleString() }}</h3>
-            <span class="kpi-change positive">94.2% completion</span>
+            <span class="kpi-change positive">Live from database</span>
           </div>
         </div>
 
         <!-- KPI Card 3: Outbound -->
-        <div class="card col-span-3 kpi-bento-card">
+        <div class="card col-span-3 kpi-bento-card" :class="{ 'pulse-highlight': pulseKpi }">
           <div class="kpi-icon-wrapper outbound">
             <Send :size="20" />
           </div>
           <div class="kpi-data">
             <span class="kpi-label">Campaign Triggers</span>
-            <h3 class="kpi-value">{{ kpiTriggersCount }} Live</h3>
-            <span class="kpi-change">Active in Agra, Ludhiana</span>
+            <h3 class="kpi-value">{{ kpiTriggersCount }} Total</h3>
+            <span class="kpi-change">Database-sourced</span>
           </div>
         </div>
 
         <!-- KPI Card 4: NPS -->
-        <div class="card col-span-3 kpi-bento-card">
+        <div class="card col-span-3 kpi-bento-card" :class="{ 'pulse-highlight': pulseKpi }">
           <div class="kpi-icon-wrapper nps">
             <CheckCircle :size="20" />
           </div>
           <div class="kpi-data">
-            <span class="kpi-label">Grower Satisfaction</span>
+            <span class="kpi-label">Click-Through Rate</span>
             <h3 class="kpi-value">{{ kpiSatisfaction }}</h3>
-            <span class="kpi-change positive">+5.2% NPS rating</span>
+            <span class="kpi-change positive">Observed from feedback</span>
           </div>
         </div>
 
@@ -295,7 +295,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="trigger in fieldTriggers" :key="trigger.id">
+                <tr v-for="trigger in fieldTriggers" :key="trigger.id" :class="{ 'new-dispatch-row': String(trigger.id).startsWith('api-') && pulseNewDispatch }">
                   <td class="font-semibold">{{ trigger.farmer }}</td>
                   <td>{{ trigger.location }}</td>
                   <td>
@@ -334,147 +334,175 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-vue-next'
-import { fetchCampaignMetrics, fetchCampaignHistory } from '../api'
+import { fetchDashboardStats } from '../api'
+import { useRealtimeSync } from '../composables/useRealtimeSync'
+import { useToast } from '../composables/useToast'
 
 const isSidebarOpen = ref(false)
 const isOnline = ref(navigator.onLine)
 const winningVariant = ref('B')
 
-const kpiReached = ref(6240)
-const kpiDialogs = ref(12840)
-const kpiTriggersCount = ref(14)
-const kpiSatisfaction = ref('84.1%')
+const sync = useRealtimeSync()
+const toast = useToast()
+
+const pulseKpi = ref(false)
+const pulseNewDispatch = ref(false)
+
+// All KPIs are now database-driven (no fake base numbers)
+const kpiReached = ref(0)
+const kpiDialogs = ref(0)
+const kpiTriggersCount = ref(0)
+const kpiSatisfaction = ref('—')
 
 const channelStats = ref({
-  whatsapp: { count: 4479, percentage: 72 },
-  voice: { count: 1028, percentage: 16.5 },
-  sms: { count: 733, percentage: 11.5 }
+  whatsapp: { count: 0, percentage: 0 },
+  voice: { count: 0, percentage: 0 },
+  sms: { count: 0, percentage: 0 }
 })
 
 const updateOnlineStatus = () => {
   isOnline.value = navigator.onLine
 }
 
-// Base mock database for autonomous field rep dispatches
-const defaultFieldTriggers = [
-  {
-    id: 1,
-    farmer: "Ram Singh",
-    location: "Agra, UP (Tehsil Fatehbad)",
-    triggerText: "SMS High Powdery Mildew Risk",
-    severity: "high",
-    action: "Dispatched fungicide brochure & 100ml Topik sample",
-    rep: "Suresh Kumar",
-    status: "Scheduled"
-  },
-  {
-    id: 2,
-    farmer: "Jaspreet Singh",
-    location: "Ludhiana, PB (Tehsil Khanna)",
-    triggerText: "IVR Irrigation Yellowing Alert",
-    severity: "medium",
-    action: "Soil moisture inspection & leaf health check scheduled",
-    rep: "Harpreet Singh",
-    status: "In Progress"
-  },
-  {
-    id: 3,
-    farmer: "Hari Prasad",
-    location: "Patna, BR (Tehsil Danapur)",
-    triggerText: "Selfie Upload: Rust Disease Spotting",
-    severity: "high",
-    action: "Visual validation, chemical solution kit delivery",
-    rep: "Manoj Dwivedi",
-    status: "Completed"
-  },
-  {
-    id: 4,
-    farmer: "Dinesh Patel",
-    location: "Agra, UP (Tehsil Agra)",
-    triggerText: "SMS Dosage Inquiry (Failed attempts)",
-    severity: "low",
-    action: "Personal tutorial visit scheduled for product application",
-    rep: "Suresh Kumar",
-    status: "Scheduled"
-  }
-]
-
-const fieldTriggers = ref([...defaultFieldTriggers])
+const fieldTriggers = ref([])
 const loading = ref(false)
 
-async function loadMetrics() {
+async function loadDashboard() {
   loading.value = true
   try {
-    const metrics = await fetchCampaignMetrics()
-    const historyData = await fetchCampaignHistory()
+    const stats = await fetchDashboardStats()
 
-    if (metrics && metrics.total_campaigns > 0) {
-      kpiTriggersCount.value = 14 + metrics.total_campaigns // Add generated to live count
-      
-      const wa = (metrics.by_channel.whatsapp || 0)
-      const voice = (metrics.by_channel.voice_call || metrics.by_channel.voice || 0)
-      const sms = (metrics.by_channel.sms || 0)
-      
-      const totalReal = wa + voice + sms
-      if (totalReal > 0) {
-        // Blend real campaigns into the base mock count for visualization
-        const blendedWa = 4479 + wa
-        const blendedVoice = 1028 + voice
-        const blendedSms = 733 + sms
-        const blendedTotal = blendedWa + blendedVoice + blendedSms
-        
-        channelStats.value.whatsapp.count = blendedWa
-        channelStats.value.whatsapp.percentage = Math.round((blendedWa / blendedTotal) * 100)
-        
-        channelStats.value.voice.count = blendedVoice
-        channelStats.value.voice.percentage = Math.round((blendedVoice / blendedTotal) * 100)
-        
-        channelStats.value.sms.count = blendedSms
-        channelStats.value.sms.percentage = Math.round((blendedSms / blendedTotal) * 100)
-      }
+    // KPI Cards — pure database counts
+    kpiReached.value = stats.total_farmers || 0
+    kpiDialogs.value = stats.total_campaigns || 0
+    kpiTriggersCount.value = stats.total_campaigns || 0
+    kpiSatisfaction.value = stats.total_campaigns > 0
+      ? `${(stats.observed_ctr * 100).toFixed(1)}%`
+      : '—'
 
-      kpiDialogs.value = 12840 + metrics.total_campaigns
-      kpiReached.value = 6240 + metrics.total_campaigns
-    }
+    // Channel distribution — pure database counts
+    const wa = stats.by_channel?.whatsapp || 0
+    const voice = (stats.by_channel?.voice_call || stats.by_channel?.voice || 0)
+    const sms = stats.by_channel?.sms || 0
+    const totalCh = wa + voice + sms || 1
 
-    if (historyData && historyData.length > 0) {
-      // Map history to triggers
-      const mapped = historyData.map((item) => {
-        const name = "Farmer ID: " + (item.farmer_id || item.grower_id || "102")
-        const loc = item.segment ? `${item.segment} Receptivity` : "UP Region"
-        const triggerText = `${item.channel.toUpperCase()} ${item.product} Alert`
-        const severity = item.predicted_score > 0.7 ? 'high' : item.predicted_score > 0.4 ? 'medium' : 'low'
-        const action = `Generated personalized advisory for ${item.product}`
-        const rep = item.id % 2 === 0 ? "Suresh Kumar" : "Harpreet Singh"
-        return {
-          id: 'api-' + item.id,
-          farmer: name,
-          location: loc,
-          triggerText,
-          severity,
-          action,
-          rep,
-          status: item.actual_clicked ? 'Completed' : 'Scheduled'
-        }
-      })
-      fieldTriggers.value = [...mapped, ...defaultFieldTriggers]
+    channelStats.value.whatsapp = { count: wa, percentage: Math.round((wa / totalCh) * 100) }
+    channelStats.value.voice = { count: voice, percentage: Math.round((voice / totalCh) * 100) }
+    channelStats.value.sms = { count: sms, percentage: Math.round((sms / totalCh) * 100) }
+
+    // Field dispatches — from recent campaigns in DB
+    if (stats.recent_dispatches && stats.recent_dispatches.length > 0) {
+      fieldTriggers.value = stats.recent_dispatches.map(d => ({
+        id: 'api-' + d.id,
+        farmer: d.farmer_name || `Farmer ${d.grower_id}`,
+        location: d.location || 'Region',
+        triggerText: `${(d.channel || 'CAMPAIGN').toUpperCase()} ${d.product || 'Advisory'} Alert`,
+        severity: d.predicted_score > 0.7 ? 'high' : d.predicted_score > 0.4 ? 'medium' : 'low',
+        action: `Generated personalized ${d.crop || ''} advisory for ${d.product || 'crop protection'}`,
+        rep: d.id % 2 === 0 ? 'Suresh Kumar' : 'Harpreet Singh',
+        status: d.actual_clicked ? 'Completed' : 'Scheduled'
+      }))
+    } else {
+      fieldTriggers.value = []
     }
   } catch (err) {
-    console.error("Failed to load admin metrics:", err)
+    console.error('Failed to load dashboard stats:', err)
   } finally {
     loading.value = false
   }
 }
 
+let cleanupCampaignSync = null
+let cleanupInteractionSync = null
+let cleanupFarmerSync = null
+
 onMounted(() => {
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
-  loadMetrics()
+  loadDashboard()
+
+  // Real-time synchronization listeners
+  cleanupCampaignSync = sync.onCampaignReceived((campaign) => {
+    toast.success(`📡 New Campaign Alert dispatched in real-time!`)
+    
+    // Optimistic UI updates
+    kpiDialogs.value += 1
+    kpiTriggersCount.value += 1
+    
+    const newDispatch = {
+      id: 'temp-' + Date.now(),
+      farmer: campaign.farmer_name || (campaign.content?.farmer_name) || `Farmer ${campaign.grower_id}`,
+      location: campaign.location || (campaign.rag?.sources?.[0]?.district ? `${campaign.rag.sources[0].state || ''}, ${campaign.rag.sources[0].district}` : 'Region'),
+      triggerText: `${(campaign.channel?.primary_channel || campaign.channel || 'CAMPAIGN').toUpperCase()} ${campaign.content?.campaign_product || campaign.product || 'Advisory'} Alert`,
+      severity: (campaign.prediction?.engagement_probability || campaign.predicted_score || 0.5) > 0.7 ? 'high' : (campaign.prediction?.engagement_probability || campaign.predicted_score || 0.5) > 0.4 ? 'medium' : 'low',
+      action: `Generated personalized ${campaign.campaign_crop || campaign.crop || ''} advisory for ${campaign.content?.campaign_product || campaign.product || 'crop protection'}`,
+      rep: 'Suresh Kumar',
+      status: 'Scheduled'
+    }
+    
+    fieldTriggers.value.unshift(newDispatch)
+    if (fieldTriggers.value.length > 10) {
+      fieldTriggers.value.pop()
+    }
+    
+    // Highlight updated counters and prepend row
+    pulseKpi.value = true
+    pulseNewDispatch.value = true
+    setTimeout(() => {
+      pulseKpi.value = false
+      pulseNewDispatch.value = false
+    }, 2000)
+    
+    // Reconcile with DB after 500ms
+    setTimeout(() => {
+      loadDashboard()
+    }, 500)
+  })
+
+  cleanupInteractionSync = sync.onInteractionReceived((interaction) => {
+    toast.info(`📈 Farmer recorded interaction (helpful: ${interaction.actual_clicked})`)
+    
+    // Update status locally in fieldTriggers
+    const dbId = 'api-' + interaction.campaign_id
+    const dispatch = fieldTriggers.value.find(d => d.id === dbId)
+    if (dispatch) {
+      dispatch.status = interaction.actual_clicked ? 'Completed' : 'Dismissed'
+    }
+    
+    pulseKpi.value = true
+    setTimeout(() => {
+      pulseKpi.value = false
+    }, 2000)
+    
+    // Reconcile with DB after 500ms
+    setTimeout(() => {
+      loadDashboard()
+    }, 500)
+  })
+
+  cleanupFarmerSync = sync.onFarmerUpdated((farmer) => {
+    toast.info(`👤 Profile synced: Active farmer updated to ${farmer.name || 'Kisan'}`)
+    pulseKpi.value = true
+    setTimeout(() => {
+      pulseKpi.value = false
+    }, 2000)
+    
+    // Reconcile with DB after 500ms
+    setTimeout(() => {
+      loadDashboard()
+    }, 500)
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('online', updateOnlineStatus)
   window.removeEventListener('offline', updateOnlineStatus)
+  
+  if (cleanupCampaignSync) cleanupCampaignSync()
+  if (cleanupInteractionSync) cleanupInteractionSync()
+  if (cleanupFarmerSync) cleanupFarmerSync()
+  
+  sync.destroy()
 })
 
 const closeSidebar = () => {
@@ -1114,5 +1142,29 @@ const closeSidebar = () => {
     align-items: flex-start;
     gap: 12px;
   }
+}
+
+/* Real-Time Micro-Animations */
+@keyframes rowPulse {
+  0% { background-color: rgba(16, 185, 129, 0.2); }
+  100% { background-color: transparent; }
+}
+
+.new-dispatch-row {
+  animation: rowPulse 2.5s ease-out;
+}
+
+@keyframes kpiPulse {
+  0% { transform: scale(1); box-shadow: var(--shadow-md); }
+  50% { 
+    transform: scale(1.03); 
+    border-color: var(--color-primary); 
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.25), 0 4px 6px -2px rgba(16, 185, 129, 0.15); 
+  }
+  100% { transform: scale(1); box-shadow: var(--shadow-md); }
+}
+
+.pulse-highlight {
+  animation: kpiPulse 1.8s ease-in-out;
 }
 </style>

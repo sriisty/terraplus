@@ -63,7 +63,7 @@
           </section>
 
           <!-- Alert Banner -->
-          <section class="alert-banner-custom animate-fade-in-up delay-1" :class="[cropNameClean.toLowerCase(), pestAlert.level === 'High Risk' ? 'glow-red' : 'glow-amber']">
+          <section v-if="pestAlert" class="alert-banner-custom animate-fade-in-up delay-1" :class="[cropNameClean.toLowerCase(), pestAlert.level === 'High Risk' ? 'glow-red' : 'glow-amber']">
             <div class="alert-icon-wrapper">
               <AlertTriangle :size="24" />
             </div>
@@ -73,6 +73,19 @@
                 <span class="alert-badge">{{ pestAlert.level }}</span>
               </div>
               <p class="alert-description">{{ pestAlert.desc }}</p>
+            </div>
+          </section>
+          <!-- Empty state when no campaigns -->
+          <section v-else class="alert-banner-custom animate-fade-in-up delay-1 empty-state-alert">
+            <div class="alert-icon-wrapper" style="background: var(--emerald-100); color: var(--emerald-600);">
+              <CheckCircle2 :size="24" />
+            </div>
+            <div class="alert-body">
+              <div class="alert-meta">
+                <span class="alert-title">No Active Alerts</span>
+                <span class="alert-badge" style="background: var(--emerald-100); color: var(--emerald-700);">All Clear</span>
+              </div>
+              <p class="alert-description">Your {{ farmerCrop }} crop in {{ districtName }} has no active pest or disease advisories. We'll notify you in real-time when a campaign is generated.</p>
             </div>
           </section>
 
@@ -123,8 +136,8 @@
             </div>
           </section>
 
-          <!-- Personalized Recommended Solution Card -->
-          <section class="card product-card glass-card hover-lift animate-fade-in-up delay-2">
+          <!-- Personalized Recommended Solution Card (DB-driven) -->
+          <section v-if="recommendedProduct" class="card product-card glass-card hover-lift animate-fade-in-up delay-2">
             <div class="product-badge">RECOMMENDED SOLUTION</div>
             <div class="product-main">
               <div class="product-visual">
@@ -154,6 +167,19 @@
                     <span>Find Local Retailer</span>
                   </button>
                 </div>
+              </div>
+            </div>
+          </section>
+          <!-- Empty state when no product recommendation -->
+          <section v-else class="card product-card glass-card hover-lift animate-fade-in-up delay-2 empty-product-card">
+            <div class="product-badge" style="background: var(--emerald-100); color: var(--emerald-700);">AWAITING RECOMMENDATION</div>
+            <div class="product-main" style="text-align:center; padding: 24px;">
+              <div class="product-visual">
+                <span class="product-icon-emoji">🌱</span>
+              </div>
+              <div class="product-details">
+                <h2>No Active Recommendation</h2>
+                <p class="product-desc">Personalized product recommendations will appear here after a campaign is generated for your farm in the API Dev Tool.</p>
               </div>
             </div>
           </section>
@@ -257,6 +283,7 @@
         <span>Poster Studio</span>
       </router-link>
     </nav>
+    <ToastStack />
   </div>
 </template>
 
@@ -279,11 +306,22 @@ import {
 } from 'lucide-vue-next'
 
 // LocalStorage references
-const farmerName = ref(localStorage.getItem('farmer_name') || "Ram Singh")
-const farmerLanguage = ref(localStorage.getItem('farmer_language') || "Hindi")
-const farmerCrop = ref(localStorage.getItem('farmer_crop') || "🌾 Wheat")
-const farmerLocation = ref(localStorage.getItem('farmer_location') || "Uttar Pradesh · Agra")
-const farmerSize = ref(localStorage.getItem('farmer_size') || "2–5 acres")
+import { useRealtimeSync } from '../composables/useRealtimeSync'
+import { useToast } from '../composables/useToast'
+import ToastStack from '../components/ToastStack.vue'
+import { fetchCampaignHistory } from '../api'
+
+const sync = useRealtimeSync()
+const toast = useToast()
+
+const farmerName = sync.activeFarmerName
+const farmerLanguage = sync.activeFarmerLanguage
+const farmerCrop = sync.activeFarmerCrop
+const farmerLocation = sync.activeFarmerLocation
+const farmerSize = sync.activeFarmerSize
+
+const customPestAlert = ref(null)
+const customRecommendedProduct = ref(null)
 
 // Timeline animation state
 const isMobileTimeline = ref(typeof window !== 'undefined' ? window.innerWidth <= 640 : false)
@@ -309,20 +347,169 @@ const scrollToBottom = () => {
 }
 
 let checkMobile = null
+let cleanupSync = null
+let cleanupFarmerSync = null
+
+const applyCampaignData = (campaign) => {
+  if (!campaign) {
+    customPestAlert.value = null
+    customRecommendedProduct.value = null
+    return
+  }
+
+  console.log('Applying campaign data:', campaign)
+
+  let pestTitle = 'Crop Protection Alert'
+  if (campaign.pest_threat) {
+    pestTitle = `Advisory: ${campaign.pest_threat}`
+  } else if (campaign.rag?.sources?.[0]?.topic) {
+    pestTitle = `Advisory: ${campaign.rag.sources[0].topic}`
+  } else if (campaign.segment) {
+    pestTitle = `Advisory: Segment ${campaign.segment} Update`
+  }
+
+  let alertLevel = 'Medium Risk'
+  if (campaign.urgency?.urgency_level === 'high' || campaign.segment === 'Very High' || campaign.segment === 'High') {
+    alertLevel = 'High Risk'
+  }
+
+  let alertDesc = campaign.rag?.advisory_summary || 
+                  campaign.rag_summary || 
+                  campaign.content?.primary_message || 
+                  campaign.message || 
+                  'Advisory generated'
+
+  customPestAlert.value = {
+    title: pestTitle,
+    level: alertLevel,
+    desc: alertDesc
+  }
+
+  let prodName = campaign.content?.campaign_product || 
+                 campaign.content?.recommended_media?.topic || 
+                 campaign.product || 
+                 'Recommended Product'
+
+  let prodCategory = alertLevel === 'High Risk' ? 'Fungicide' : 'Insecticide'
+  
+  let prodIcon = '🧪'
+  if (campaign.content?.recommended_media?.type === 'video') {
+    prodIcon = '📹'
+  } else if (campaign.channel === 'voice' || campaign.channel === 'voice_script') {
+    prodIcon = '📞'
+  }
+
+  let prodDesc = campaign.content?.primary_message || 
+                 campaign.message || 
+                 campaign.whatsapp_message || 
+                 campaign.sms_message || 
+                 'Advisory text'
+
+  customRecommendedProduct.value = {
+    name: prodName,
+    category: prodCategory,
+    icon: prodIcon,
+    desc: prodDesc,
+    dosage: 'Apply according to vernacular instructions generated.',
+    timing: 'Morning or late afternoon'
+  }
+}
+
+const pendingCampaign = ref(null)
+
+const loadLatestCampaign = async () => {
+  const growerId = sync.activeFarmerGrowerId.value
+  if (!growerId) return
+  
+  if (pendingCampaign.value && pendingCampaign.value.grower_id === growerId) {
+    applyCampaignData(pendingCampaign.value)
+    pendingCampaign.value = null
+    return
+  }
+  
+  try {
+    const history = await fetchCampaignHistory(1, growerId)
+    if (history && history.length > 0) {
+      if (pendingCampaign.value && pendingCampaign.value.grower_id === growerId) {
+        applyCampaignData(pendingCampaign.value)
+        pendingCampaign.value = null
+      } else {
+        applyCampaignData(history[0])
+      }
+    } else {
+      applyCampaignData(null)
+    }
+  } catch (err) {
+    console.error('Failed to load latest campaign from history:', err)
+  }
+}
 
 onMounted(() => {
+  // Load initial campaign from history
+  loadLatestCampaign()
+
   // Timeline check on resize
   checkMobile = () => {
     isMobileTimeline.value = window.innerWidth <= 640
   }
   checkMobile()
   window.addEventListener('resize', checkMobile)
+
+  // Listen for real-time campaign broadcasts
+  cleanupSync = sync.onCampaignReceived((campaign) => {
+    const isNewFarmer = campaign.grower_id && campaign.grower_id !== sync.activeFarmerGrowerId.value
+    pendingCampaign.value = campaign
+
+    // Apply campaign data to the dashboard cards
+    if (isNewFarmer) {
+      console.log('Syncing active farmer to match incoming campaign:', campaign.grower_id)
+      sync.updateActiveFarmer({ grower_id: campaign.grower_id })
+    } else {
+      applyCampaignData(campaign)
+      pendingCampaign.value = null
+    }
+
+    // Prepend campaign message to chatbot stream
+    chatMessages.value.push({
+      sender: 'ai',
+      text: `🔔 [REALTIME ADVISORY]: ${campaign.content?.primary_message || campaign.message}`
+    })
+
+    // Show beautiful toast notification
+    toast.success(`🔔 Real-time Advisory: "${campaign.content?.campaign_product || campaign.product || 'Crop protection'} recommended!"`)
+  })
+
+  // Listen for active farmer update syncs
+  cleanupFarmerSync = sync.onFarmerUpdated((farmer) => {
+    toast.info(`👤 Profile synced: Active farmer is now ${farmer.name || 'Kisan'}!`)
+  })
 })
 
 onUnmounted(() => {
   if (checkMobile) {
     window.removeEventListener('resize', checkMobile)
   }
+  if (cleanupSync) {
+    cleanupSync()
+  }
+  if (cleanupFarmerSync) {
+    cleanupFarmerSync()
+  }
+  sync.destroy()
+})
+
+// Watch grower ID to reset overrides when farmer profile changes
+watch(sync.activeFarmerGrowerId, () => {
+  // Load latest campaign from database history for the new farmer
+  loadLatestCampaign()
+
+  // Reset chatbot default welcome message
+  chatMessages.value = [
+    {
+      sender: 'ai',
+      text: `Hello! I am your Terrapulse AI assistant. I see you are growing ${sync.activeFarmerCrop.value} in ${districtName.value} on a ${sync.activeFarmerSize.value} plot. How can I help you today?`
+    }
+  ]
 })
 
 // Crop details helper
@@ -335,76 +522,10 @@ const districtName = computed(() => {
   return parts.length > 1 ? parts[1].trim() : farmerLocation.value
 })
 
-// Personalization mappings
-const pestAlert = computed(() => {
-  const crop = cropNameClean.value.toLowerCase()
-  if (crop === 'wheat') {
-    return {
-      title: "Pest Alert: Powdery Mildew Risk",
-      level: "High Risk",
-      desc: `High humidity (>80%) detected in ${districtName.value} district. Conditions are highly favorable for fungal infections in the flowering stage. Proactive spray is strongly recommended.`
-    }
-  } else if (crop === 'maize') {
-    return {
-      title: "Pest Alert: Fall Armyworm",
-      level: "Medium Risk",
-      desc: `Scattered alerts of Fall Armyworm reported in neighboring fields. Monitor the central whorl of maize crops daily. Apply insecticide immediately if feeding marks appear.`
-    }
-  } else if (crop === 'mustard') {
-    return {
-      title: "Pest Alert: Aphid Infestation",
-      level: "High Risk",
-      desc: `Cloudy weather and low temperatures expected this week in ${districtName.value}. This will accelerate aphid colony growth. Inspect crop stems and leaves.`
-    }
-  } else { // Potato
-    return {
-      title: "Pest Alert: Late Blight Warning",
-      level: "High Risk",
-      desc: `Persistent wet soils and fog in ${districtName.value} are optimal for Late Blight development. Spray preventive fungicide to secure tuber yield.`
-    }
-  }
-})
-
-const recommendedProduct = computed(() => {
-  const crop = cropNameClean.value.toLowerCase()
-  if (crop === 'wheat') {
-    return {
-      name: "Topik 15 WP",
-      category: "Fungicide",
-      icon: "🧪",
-      desc: "Specially formulated for wheat crop protection during active growth and flowering. Highly effective against powdery mildew, rust, and narrow-leafed weeds.",
-      dosage: "160 grams per acre, dissolved in 150 liters of water.",
-      timing: "Apply during early morning when wind is low and leaves are dry."
-    }
-  } else if (crop === 'maize') {
-    return {
-      name: "Ampligo",
-      category: "Insecticide",
-      icon: "🐛",
-      desc: "Fast-acting contact and ingestion insecticide targeting chewing pests. Excellent knockdown action against Fall Armyworm and stem borers.",
-      dosage: "80 ml per acre, sprayed evenly over the foliage.",
-      timing: "Spray in early evening when armyworm larvae are most active."
-    }
-  } else if (crop === 'mustard') {
-    return {
-      name: "Actara 25 WG",
-      category: "Insecticide",
-      icon: "🛡️",
-      desc: "Systemic insecticide offering long-lasting protection against sucking pests like aphids, jassids, and whiteflies. Absorbed quickly by leaves.",
-      dosage: "40 grams per acre, using clean spray equipment.",
-      timing: "Apply at the first appearance of aphid colonies on flower heads."
-    }
-  } else { // Potato
-    return {
-      name: "Revus",
-      category: "Fungicide",
-      icon: "🥔",
-      desc: "Premium crop protection against Late Blight in potatoes. Rainfast within rain-wash zones, protecting new growing leaves.",
-      dosage: "250 ml per acre in 200 liters of water.",
-      timing: "Apply preventively or immediately when weather flags late blight humidity."
-    }
-  }
-})
+// Pest alert and product recommendation are now fully DB-driven.
+// When no campaigns exist, these are null and the template shows an empty state.
+const pestAlert = computed(() => customPestAlert.value)
+const recommendedProduct = computed(() => customRecommendedProduct.value)
 
 // Chatbot setup
 const chatInputText = ref("")
@@ -427,7 +548,7 @@ const promptChips = computed(() => {
   return [
     { text: `💧 ${crop} Irrigation`, query: `What are the best irrigation practices for my ${crop} crop?` },
     { text: `🐛 Pest Control`, query: `How do I protect my ${crop} against the current regional pest threats?` },
-    { text: `💊 Dosage Guide`, query: `What is the exact recommended dose and timing for applying ${recommendedProduct.value.name}?` }
+    { text: `💊 Dosage Guide`, query: `What is the exact recommended dose and timing for applying ${recommendedProduct.value?.name || 'the recommended product'}?` }
   ]
 })
 

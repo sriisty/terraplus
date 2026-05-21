@@ -29,13 +29,13 @@
             <span class="sub">Personalized Alerts & Advisory Logs</span>
           </div>
 
-          <div class="messages-list">
+          <TransitionGroup name="list" tag="div" class="messages-list">
             <button 
-              v-for="(msg, idx) in messages" 
+              v-for="msg in messages" 
               :key="msg.id"
               @click="selectMessage(msg.id)"
-              class="message-list-item animate-fade-in-up active-scale"
-              :class="['delay-' + (idx + 1), { active: selectedMsgId === msg.id, unread: msg.isUnread }]"
+              class="message-list-item active-scale"
+              :class="{ active: selectedMsgId === msg.id, unread: msg.isUnread }"
             >
               <div class="msg-item-header">
                 <span class="channel-badge" :class="msg.channel.toLowerCase().replace(/[^a-z0-9]/g, '-')">
@@ -52,6 +52,13 @@
                 <span class="unread-dot" v-if="msg.isUnread"></span>
               </div>
             </button>
+          </TransitionGroup>
+
+          <!-- Empty state when no messages -->
+          <div v-if="messages.length === 0" class="empty-inbox-state">
+            <div class="empty-inbox-icon">📬</div>
+            <h3>No Messages Yet</h3>
+            <p>Your personalized crop advisories will appear here after a campaign is generated in the API Dev Tool.</p>
           </div>
         </aside>
 
@@ -131,15 +138,48 @@
                   <div v-else class="voice-bubble">
                     <div class="voice-header">
                       <span>📞 Voice Outbound Call Record</span>
+                      <span class="audio-badge">IVR Broadcast</span>
                     </div>
-                    <div class="voice-audio-preview">
-                      <span class="wave-anim">📊</span>
+                    
+                    <div class="voice-audio-preview card glass-card">
+                      <!-- Bouncing waveform animation when playing -->
+                      <div class="waveform-container" :class="{ playing: isAudioPlaying }">
+                        <div class="bar bar-1"></div>
+                        <div class="bar bar-2"></div>
+                        <div class="bar bar-3"></div>
+                        <div class="bar bar-4"></div>
+                        <div class="bar bar-5"></div>
+                        <div class="bar bar-6"></div>
+                        <div class="bar bar-7"></div>
+                        <div class="bar bar-8"></div>
+                      </div>
+                      
                       <div class="audio-timer">
-                        <strong>0:45</strong>
-                        <span>Audio Advisory Transcript</span>
+                        <strong>Voice Advisory</strong>
+                        <span>{{ isAudioPlaying ? 'Playing message...' : 'Ready to listen' }}</span>
                       </div>
                     </div>
-                    <p class="voice-text">"{{ activeMessage.body }}"</p>
+
+                    <!-- Playback element -->
+                    <div class="audio-player-wrapper" v-if="activeMessage.audio_file">
+                      <audio 
+                        ref="audioPlayer" 
+                        :src="resolveMediaUrl(activeMessage.audio_file)" 
+                        @play="isAudioPlaying = true" 
+                        @pause="isAudioPlaying = false" 
+                        @ended="isAudioPlaying = false"
+                        controls 
+                        class="html5-audio-player"
+                      ></audio>
+                    </div>
+                    <div v-else class="no-audio-notice">
+                      ⚠️ TTS audio file not generated for this campaign.
+                    </div>
+                    
+                    <div class="transcript-box">
+                      <span class="transcript-label">Call Transcript:</span>
+                      <p class="voice-text">"{{ activeMessage.body }}"</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -241,11 +281,12 @@
         <span>Poster Studio</span>
       </router-link>
     </nav>
+    <ToastStack />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { 
   ArrowLeft, 
   CheckCircle2, 
@@ -261,12 +302,20 @@ import {
   CheckCheck
 } from 'lucide-vue-next'
 
-const selectedMsgId = ref(1)
-const isMobileActiveDetail = ref(false)
+import { useRealtimeSync } from '../composables/useRealtimeSync'
+import { useToast } from '../composables/useToast'
+import ToastStack from '../components/ToastStack.vue'
+import { fetchCampaignHistory, recordCampaignClick, resolveMediaUrl } from '../api'
 
-const farmerCrop = ref(localStorage.getItem('farmer_crop') || "🌾 Wheat")
-const farmerLocation = ref(localStorage.getItem('farmer_location') || "Uttar Pradesh · Agra")
-const farmerSize = ref(localStorage.getItem('farmer_size') || "2–5 acres")
+const sync = useRealtimeSync()
+const toast = useToast()
+
+const farmerCrop = sync.activeFarmerCrop
+const farmerLocation = sync.activeFarmerLocation
+const farmerSize = sync.activeFarmerSize
+
+const selectedMsgId = ref(null)
+const isMobileActiveDetail = ref(false)
 
 const deliverySteps = ref({ delivered: false, read: false, feedback: false })
 let deliveryTimer = null
@@ -288,10 +337,6 @@ const triggerDeliveryAnimation = (msgId) => {
   }, 1000)
 }
 
-onMounted(() => {
-  triggerDeliveryAnimation(selectedMsgId.value)
-})
-
 const cropName = computed(() => {
   return farmerCrop.value.replace(/[^a-zA-Z\s]/g, '').trim()
 })
@@ -301,72 +346,53 @@ const districtName = computed(() => {
   return parts.length > 1 ? parts[1].trim() : farmerLocation.value
 })
 
-const messages = ref([
-  {
-    id: 1,
-    title: `${cropName.value} Alert: Fungal Risk`,
-    summary: `Apply crop protection this week — critical growth stage detected.`,
-    body: cropName.value.toLowerCase() === 'maize' 
-      ? `किसान भाइयों, आपके क्षेत्र में मक्का की फसल में फॉल आर्मीवर्म (Fall Armyworm) कीट का खतरा बढ़ गया है। सुरक्षा हेतु आज ही Ampligo का 80ml/एकड़ की दर से स्प्रे करें।`
-      : cropName.value.toLowerCase() === 'mustard'
-      ? `किसान भाइयों, आपके क्षेत्र में सरसों की फसल में चेपा (Aphid Infestation) कीट का खतरा बढ़ गया है। सुरक्षा हेतु आज ही Actara 25 WG का 40g/एकड़ की दर से स्प्रे करें।`
-      : cropName.value.toLowerCase() === 'potato'
-      ? `किसान भाइयों, आपके क्षेत्र में आलू की फसल में पछेता झुलसा (Late Blight) रोग का खतरा बढ़ गया है। सुरक्षा हेतु आज ही Revus का 250ml/एकड़ की दर से स्प्रे करें।`
-      : `किसान भाइयों, आपके क्षेत्र में आर्द्रता अधिक होने से गेहूं की फसल में फफूंद संक्रमण (Yellow Rust) का खतरा बढ़ गया है। फूल आने की अवस्था (Flowering Stage) में सुरक्षा हेतु आज ही Topik 15 WP का 160g/एकड़ की दर से 150 लीटर पानी में घोल बनाकर सुबह के समय छिड़काव करें।`,
-    channel: `WhatsApp`,
-    channelIcon: `💬`,
-    time: `Today, 8:00 AM`,
-    isUnread: true,
-    score: `94%`,
-    repName: `Suresh Kumar`,
-    type: `alert`
-  },
-  {
-    id: 2,
-    title: `Field Representative Visit`,
-    summary: `Field rep Suresh Kumar will visit ${districtName.value} tehsil on May 21. Book free slot.`,
-    body: `नमस्ते राम सिंह जी, हमारे कृषि विशेषज्ञ सुरेश कुमार दिनांक 21 मई को आपके फतेहबाद (${districtName.value}) क्षेत्र में आ रहे हैं। यदि आपको अपनी फसल में किसी बीमारी का लक्षण दिख रहा है, तो निःशुल्क परामर्श के लिए आज ही अपना समय बुक करें।`,
-    channel: `WhatsApp`,
-    channelIcon: `💬`,
-    time: `Yesterday, 4:15 PM`,
-    isUnread: true,
-    score: `88%`,
-    repName: `Suresh Kumar`,
-    type: `visit`
-  },
-  {
-    id: 3,
-    title: `${cropName.value} Care Tip`,
-    summary: `Irrigate at critical growth stage for 15-20% better yield. Weather dry for 5 days.`,
-    body: cropName.value.toLowerCase() === 'maize'
-      ? `साप्ताहिक सलाह: आगामी 5 दिनों तक मौसम शुष्क रहने की संभावना है। मक्का में नर मंजरी (Tasseling) अवस्था के दौरान सिंचाई अवश्य करें, इससे भुट्टे का आकार बढ़ता है और पैदावार 15-20% तक बढ़ती है।`
-      : cropName.value.toLowerCase() === 'mustard'
-      ? `साप्ताहिक सलाह: आगामी 5 दिनों तक मौसम शुष्क रहने की संभावना है। सरसों में फूल आने की अवस्था के दौरान सिंचाई अवश्य करें, इससे फलियों में दानों की संख्या बढ़ती है और पैदावार 15-20% तक बढ़ती है।`
-      : cropName.value.toLowerCase() === 'potato'
-      ? `साप्ताहिक सलाह: आगामी 5 दिनों तक मौसम शुष्क रहने की संभावना है। आलू में कंद बनने (Tuberization) की अवस्था के दौरान हल्की सिंचाई अवश्य करें, इससे आलू का आकार बढ़ता है और पैदावार 15-20% तक बढ़ती है।`
-      : `साप्ताहिक सलाह: आगामी 5 दिनों तक मौसम शुष्क रहने की संभावना है। गेहूँ में बाली निकलने से ठीक पहले सिंचाई अवश्य करें, इससे दानों का भराव अच्छा होता है और पैदावार 15-20% तक बढ़ती है।`,
-    channel: `SMS`,
-    channelIcon: `✉️`,
-    time: `2 days ago`,
-    isUnread: true,
-    score: `76%`,
-    repName: `Harpreet Singh`,
-    type: `tip`
-  },
-  {
-    id: 4,
-    title: `Rabi 2025-26 Campaign Start`,
-    summary: `Season campaign started. Welcome to Terrapulse AI alerts.`,
-    body: `प्रिय किसान भाई, रबी सीजन 2025-26 के लिए टेरापल्स एआई में आपका स्वागत है। आपके खेत के आकार (${farmerSize.value}) और मुख्य फसल (${farmerCrop.value}) के आधार पर आपको इस पूरे सीजन समय-समय पर सही सलाह और सुरक्षा निर्देश प्राप्त होते रहेंगे।`,
-    channel: `Voice (IVR)`,
-    channelIcon: `📞`,
-    time: `Oct 10, 2025`,
-    isUnread: false,
-    score: `91%`,
-    repName: `Suresh Kumar`,
-    type: `welcome`
+// Static messages have been removed — Inbox is now fully database-driven
+
+const messages = ref([])
+const pendingCampaign = ref(null)
+
+const mapIncomingCampaignToMsg = (c) => {
+  let normalizedChannel = 'WhatsApp'
+  let channelIcon = '💬'
+  const lowerChannel = (c.channel?.primary_channel || c.channel || '').toLowerCase()
+  if (lowerChannel.includes('whatsapp')) {
+    normalizedChannel = 'WhatsApp'
+    channelIcon = '💬'
+  } else if (lowerChannel.includes('sms')) {
+    normalizedChannel = 'SMS'
+    channelIcon = '✉️'
+  } else if (lowerChannel.includes('voice') || lowerChannel.includes('call') || lowerChannel.includes('ivr')) {
+    normalizedChannel = 'Voice (IVR)'
+    channelIcon = '📞'
   }
-])
+
+  let bodyText = c.content?.primary_message || c.message || ''
+  if (normalizedChannel === 'WhatsApp' && c.content?.whatsapp) bodyText = c.content.whatsapp
+  else if (normalizedChannel === 'WhatsApp' && c.whatsapp_message) bodyText = c.whatsapp_message
+  else if (normalizedChannel === 'SMS' && c.content?.sms) bodyText = c.content.sms
+  else if (normalizedChannel === 'SMS' && c.sms_message) bodyText = c.sms_message
+  else if (normalizedChannel === 'Voice (IVR)' && c.content?.voice_script) bodyText = c.content.voice_script
+  else if (normalizedChannel === 'Voice (IVR)' && c.voice_script) bodyText = c.voice_script
+
+  const cropVal = c.campaign_crop || c.crop || farmerCrop.value
+
+  return {
+    id: c.id ? `db-${c.id}` : `temp-${Date.now()}`,
+    dbId: c.id || null,
+    title: c.content?.campaign_product || c.product ? `${cropVal} Advisory: ${c.content?.campaign_product || c.product}` : `${cropVal} Advisory`,
+    summary: c.content?.primary_message || c.message || 'New campaign alert generated.',
+    body: bodyText,
+    channel: normalizedChannel,
+    channelIcon,
+    time: c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    isUnread: true,
+    score: c.prediction?.engagement_probability ? `${(c.prediction.engagement_probability * 100).toFixed(0)}%` : '90%',
+    repName: 'Suresh Kumar',
+    type: 'alert',
+    audio_file: c.content?.audio_file || c.audio_file,
+    actual_clicked: null
+  }
+}
 
 const unreadCount = computed(() => {
   return messages.value.filter(m => m.isUnread).length
@@ -376,6 +402,10 @@ const activeMessage = computed(() => {
   return messages.value.find(m => m.id === selectedMsgId.value) || messages.value[0]
 })
 
+// Audio playback state
+const isAudioPlaying = ref(false)
+const audioPlayer = ref(null)
+
 const selectMessage = (id) => {
   selectedMsgId.value = id
   const msg = messages.value.find(m => m.id === id)
@@ -384,18 +414,161 @@ const selectMessage = (id) => {
   }
   isMobileActiveDetail.value = true
   triggerDeliveryAnimation(id)
+
+  // Pause audio when switching messages
+  isAudioPlaying.value = false
+  if (audioPlayer.value) {
+    audioPlayer.value.pause()
+    audioPlayer.value.currentTime = 0
+  }
 }
 
 const voteStatus = ref({}) // msgId -> 'up' or 'down'
 const actionDispatched = ref({}) // msgId -> true/false
 
-const handleVote = (msgId, status) => {
-  voteStatus.value[msgId] = status
+const handleVote = async (msgId, status) => {
+  const msg = messages.value.find(m => m.id === msgId)
+  if (msg && msg.dbId) {
+    try {
+      const clicked = status === 'up'
+      await recordCampaignClick(msg.dbId, clicked)
+      voteStatus.value[msgId] = status
+      toast.success('Feedback recorded in backend models!')
+    } catch (err) {
+      console.error('Failed to submit campaign click feedback:', err)
+      toast.error('Could not save feedback to database.')
+    }
+  } else {
+    voteStatus.value[msgId] = status
+  }
 }
 
 const dispatchAction = (msgId) => {
   actionDispatched.value[msgId] = true
 }
+
+async function loadHistoryFromDb() {
+  try {
+    const dbCampaigns = await fetchCampaignHistory(20, sync.activeFarmerGrowerId.value)
+    const mapped = dbCampaigns.map(c => {
+      let normalizedChannel = 'WhatsApp'
+      let channelIcon = '💬'
+      const lowerChannel = (c.channel || '').toLowerCase()
+      if (lowerChannel.includes('whatsapp')) {
+        normalizedChannel = 'WhatsApp'
+        channelIcon = '💬'
+      } else if (lowerChannel.includes('sms')) {
+        normalizedChannel = 'SMS'
+        channelIcon = '✉️'
+      } else if (lowerChannel.includes('voice') || lowerChannel.includes('call') || lowerChannel.includes('ivr')) {
+        normalizedChannel = 'Voice (IVR)'
+        channelIcon = '📞'
+      }
+
+      let bodyText = c.message
+      if (normalizedChannel === 'WhatsApp' && c.whatsapp_message) bodyText = c.whatsapp_message
+      else if (normalizedChannel === 'SMS' && c.sms_message) bodyText = c.sms_message
+      else if (normalizedChannel === 'Voice (IVR)' && c.voice_script) bodyText = c.voice_script
+
+      return {
+        id: `db-${c.id}`,
+        dbId: c.id,
+        title: c.product ? `${c.campaign_crop || cropName.value} Advisory: ${c.product}` : `${c.campaign_crop || cropName.value} Advisory`,
+        summary: c.message || 'New campaign alert generated.',
+        body: bodyText,
+        channel: normalizedChannel,
+        channelIcon,
+        time: c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
+        isUnread: !c.actual_clicked, // If clicked, it's not unread
+        score: c.predicted_score ? `${(c.predicted_score * 100).toFixed(0)}%` : '90%',
+        repName: 'Suresh Kumar',
+        type: 'alert',
+        audio_file: c.audio_file,
+        actual_clicked: c.actual_clicked
+      }
+    })
+
+    // Merge pending campaign if matching and not already exists
+    if (pendingCampaign.value && pendingCampaign.value.grower_id === sync.activeFarmerGrowerId.value) {
+      const pc = pendingCampaign.value
+      const exists = mapped.some(m => m.dbId === pc.id || (pc.content && m.body === (pc.content.whatsapp || pc.content.sms || pc.content.voice_script || pc.content.primary_message)))
+      if (!exists) {
+        mapped.unshift(mapIncomingCampaignToMsg(pc))
+      }
+    }
+
+    // Populate existing vote statuses
+    mapped.forEach(m => {
+      if (m.actual_clicked !== null && m.actual_clicked !== undefined) {
+        voteStatus.value[m.id] = m.actual_clicked ? 'up' : 'down'
+      }
+    })
+
+    messages.value = [...mapped]
+
+    // Set initial selection
+    if (messages.value.length > 0) {
+      if (!selectedMsgId.value || !messages.value.some(m => m.id === selectedMsgId.value)) {
+        selectedMsgId.value = messages.value[0].id
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load campaigns from DB:', err)
+    messages.value = []
+    if (messages.value.length > 0) {
+      selectedMsgId.value = messages.value[0].id
+    }
+  }
+}
+
+let cleanupSync = null
+let cleanupFarmerSync = null
+
+onMounted(() => {
+  loadHistoryFromDb()
+  triggerDeliveryAnimation(selectedMsgId.value)
+
+  cleanupSync = sync.onCampaignReceived((campaign) => {
+    const isNewFarmer = campaign.grower_id && campaign.grower_id !== sync.activeFarmerGrowerId.value
+    pendingCampaign.value = campaign
+
+    if (isNewFarmer) {
+      console.log('Syncing active farmer to match incoming campaign:', campaign.grower_id)
+      sync.updateActiveFarmer({ grower_id: campaign.grower_id })
+    } else {
+      // Map and prepend immediately
+      const newMsg = mapIncomingCampaignToMsg(campaign)
+      const exists = messages.value.some(m => m.dbId === newMsg.dbId || m.body === newMsg.body)
+      if (!exists) {
+        messages.value.unshift(newMsg)
+        selectMessage(newMsg.id)
+      }
+    }
+
+    const channelName = campaign.channel?.primary_channel?.replace(/_/g, ' ') || 'advisory'
+    toast.success(`🔔 New ${channelName} campaign received!`)
+    
+    // Delayed background history fetch to reconcile database IDs if needed
+    setTimeout(() => {
+      loadHistoryFromDb()
+    }, 500)
+  })
+
+  cleanupFarmerSync = sync.onFarmerUpdated((farmer) => {
+    toast.info(`👤 Inbox synced for farmer: ${farmer.name || 'Kisan'}`)
+    loadHistoryFromDb()
+  })
+})
+
+onUnmounted(() => {
+  if (cleanupSync) cleanupSync()
+  if (cleanupFarmerSync) cleanupFarmerSync()
+  sync.destroy()
+})
+
+watch(sync.activeFarmerGrowerId, () => {
+  loadHistoryFromDb()
+})
 </script>
 
 <style scoped>
@@ -1143,5 +1316,147 @@ const dispatchAction = (msgId) => {
   .mobile-bottom-bar {
     display: flex;
   }
+}
+
+/* Real-Time Transitions for Messages List */
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(-30px);
+}
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
+}
+.list-move {
+  transition: transform 0.5s ease;
+}
+
+/* Custom Audio Badge & Layout */
+.audio-badge {
+  background-color: var(--emerald-600);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.no-audio-notice {
+  background-color: var(--slate-100);
+  border: 1px dashed var(--slate-300);
+  color: var(--slate-500);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.transcript-box {
+  border-top: 1px solid var(--slate-200);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.transcript-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--slate-400);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.audio-player-wrapper {
+  margin-bottom: 14px;
+}
+
+.html5-audio-player {
+  width: 100%;
+  border-radius: 8px;
+  background-color: var(--slate-50);
+}
+
+/* Sleek Bouncing Waveform Animation */
+.waveform-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 24px;
+  padding: 2px 0;
+}
+
+.waveform-container .bar {
+  width: 3px;
+  background-color: var(--emerald-500);
+  border-radius: 2px;
+  height: 4px;
+  transition: height 0.1s ease;
+}
+
+/* Custom heights for unique shapes */
+.waveform-container .bar-1 { height: 6px; }
+.waveform-container .bar-2 { height: 14px; }
+.waveform-container .bar-3 { height: 8px; }
+.waveform-container .bar-4 { height: 18px; }
+.waveform-container .bar-5 { height: 12px; }
+.waveform-container .bar-6 { height: 20px; }
+.waveform-container .bar-7 { height: 10px; }
+.waveform-container .bar-8 { height: 5px; }
+
+/* Animation trigger when playing class is active */
+.waveform-container.playing .bar-1 { animation: bounce-bar 0.6s infinite ease-in-out alternate 0.1s; }
+.waveform-container.playing .bar-2 { animation: bounce-bar 0.4s infinite ease-in-out alternate 0.2s; }
+.waveform-container.playing .bar-3 { animation: bounce-bar 0.7s infinite ease-in-out alternate 0.3s; }
+.waveform-container.playing .bar-4 { animation: bounce-bar 0.5s infinite ease-in-out alternate 0.0s; }
+.waveform-container.playing .bar-5 { animation: bounce-bar 0.8s infinite ease-in-out alternate 0.15s; }
+.waveform-container.playing .bar-6 { animation: bounce-bar 0.45s infinite ease-in-out alternate 0.25s; }
+.waveform-container.playing .bar-7 { animation: bounce-bar 0.65s infinite ease-in-out alternate 0.05s; }
+.waveform-container.playing .bar-8 { animation: bounce-bar 0.55s infinite ease-in-out alternate 0.1s; }
+
+@keyframes bounce-bar {
+  0% {
+    height: 4px;
+  }
+  100% {
+    height: 22px;
+  }
+}
+
+/* Empty Inbox State */
+.empty-inbox-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.empty-inbox-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-inbox-state h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--slate-700);
+  margin-bottom: 8px;
+}
+
+.empty-inbox-state p {
+  font-size: 14px;
+  color: var(--slate-500);
+  max-width: 280px;
+  line-height: 1.5;
 }
 </style>

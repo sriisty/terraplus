@@ -1,6 +1,14 @@
 const { computed, nextTick, onMounted, ref } = window.Vue
 
-const API_BASE_URL = window.API_BASE_URL || 'http://localhost:8000'
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname
+    return `${window.location.protocol}//${host}:8000`
+  }
+  return 'http://127.0.0.1:8000'
+}
+
+const API_BASE_URL = window.API_BASE_URL || getApiBaseUrl()
 
 const emptyFarmer = () => ({
   grower_id: '',

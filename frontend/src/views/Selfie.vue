@@ -104,13 +104,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { ArrowLeft, Camera, Share2, Download, RefreshCw } from 'lucide-vue-next'
+import { useRealtimeSync } from '../composables/useRealtimeSync'
 
 const fileInput = ref(null)
 const canvasEl = ref(null)
 const imageLoaded = ref(false)
 const userImage = ref(null)
+
+const sync = useRealtimeSync()
 
 const crop = ref(localStorage.getItem('farmer_crop') || '🌾 Wheat')
 
@@ -123,10 +126,46 @@ const brandMap = {
 
 const brand = ref(brandMap[crop.value] || 'Topik 15 WP')
 
+let cleanupFarmerSync = null
+
+onMounted(() => {
+  drawCanvas()
+  
+  cleanupFarmerSync = sync.onFarmerUpdated(() => {
+    if (sync.activeFarmerCrop.value && sync.activeFarmerCrop.value !== crop.value) {
+      crop.value = sync.activeFarmerCrop.value
+    }
+    drawCanvas()
+  })
+})
+
+onUnmounted(() => {
+  if (cleanupFarmerSync) cleanupFarmerSync()
+  sync.destroy()
+})
+
 watch(crop, (newCrop) => {
   if (brandMap[newCrop]) {
     brand.value = brandMap[newCrop]
   }
+  if (newCrop !== sync.activeFarmerCrop.value) {
+    sync.updateActiveFarmer({
+      grower_id: sync.activeFarmerGrowerId.value,
+      crop: newCrop
+    })
+  }
+  drawCanvas()
+})
+
+watch(brand, () => {
+  drawCanvas()
+})
+
+watch(() => sync.activeFarmerGrowerId.value, (newGrowerId) => {
+  if (sync.activeFarmerCrop.value && sync.activeFarmerCrop.value !== crop.value) {
+    crop.value = sync.activeFarmerCrop.value
+  }
+  drawCanvas()
 })
 
 function handleFileUpload(event) {

@@ -47,7 +47,7 @@ class CampaignResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/", response_model=CampaignResponse, summary="Generate campaign for multiple farmers")
-def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)):
+async def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)):
     """
     Run predictions for a list of grower_ids and return ranked campaign plan.
     Only farmers already in the database are processed; others are skipped.
@@ -59,6 +59,7 @@ def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)):
 
     results:  List[CampaignResult] = []
     skipped = 0
+    broadcast_payloads = []
 
     for grower_id in payload.grower_ids:
         farmer = db.query(models.Farmer).filter(
@@ -161,11 +162,34 @@ def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)):
                 priority_score         = channel["priority_score"],
             ))
 
+            broadcast_payloads.append({
+                "grower_id": grower_id,
+                "prediction": pred,
+                "channel": channel,
+                "vernacular": vernacular,
+                "urgency": urgency,
+                "rag": rag,
+                "content": content,
+                "pest_threat": payload.pest_threat,
+            })
+
         except Exception as exc:
             skipped += 1
             continue
 
     db.commit()
+
+    # Broadcast generated campaigns after successful DB commit
+    from routers.realtime import manager
+    for payload_data in broadcast_payloads:
+        try:
+            await manager.broadcast({
+                "type": "campaign-generated",
+                "data": payload_data
+            })
+        except Exception as exc:
+            import logging
+            logging.getLogger("syngenta.api").warning(f"Could not broadcast campaign-generated event: {exc}")
 
     # Sort by priority (highest first)
     results.sort(key=lambda r: r.priority_score, reverse=True)
@@ -181,11 +205,16 @@ def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)):
 def campaign_history(
     limit:  int = 50,
     skip:   int = 0,
+    grower_id: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """Return recent campaign records ordered by creation time."""
+    """Return recent campaign records ordered by creation time, optionally filtered by grower_id."""
+    query = db.query(models.Campaign)
+    if grower_id:
+        query = query.join(models.Farmer).filter(models.Farmer.grower_id == grower_id)
+    
     rows = (
-        db.query(models.Campaign)
+        query
         .order_by(models.Campaign.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -196,10 +225,17 @@ def campaign_history(
             "id":              r.id,
             "farmer_id":       r.farmer_id,
             "product":         r.product,
+            "campaign_crop":   r.campaign_crop,
             "channel":         r.channel,
             "segment":         r.segment,
             "predicted_score": r.predicted_score,
             "actual_clicked":  r.actual_clicked,
+            "message":         r.message,
+            "sms_message":     r.sms_message,
+            "whatsapp_message": r.whatsapp_message,
+            "voice_script":    r.voice_script,
+            "rag_summary":     r.rag_summary,
+            "audio_file":      r.audio_file,
             "sent_at":         r.sent_at.isoformat() if r.sent_at else None,
             "created_at":      r.created_at.isoformat() if r.created_at else None,
         }
@@ -229,11 +265,26 @@ def campaign_metrics(db: Session = Depends(get_db)):
 
 
 @router.patch("/{campaign_id}/clicked", summary="Record actual click outcome")
-def record_click(campaign_id: int, clicked: bool, db: Session = Depends(get_db)):
+async def record_click(campaign_id: int, clicked: bool, db: Session = Depends(get_db)):
     """Update the actual_clicked flag for a campaign (for feedback loop tracking)."""
     row = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Campaign not found")
     row.actual_clicked = clicked
     db.commit()
+
+    # Broadcast interaction to WebSockets
+    try:
+        from routers.realtime import manager
+        await manager.broadcast({
+            "type": "farmer-interaction",
+            "data": {
+                "campaign_id": campaign_id,
+                "actual_clicked": clicked
+            }
+        })
+    except Exception as exc:
+        import logging
+        logging.getLogger("syngenta.api").warning(f"Could not broadcast farmer-interaction event: {exc}")
+
     return {"campaign_id": campaign_id, "actual_clicked": clicked}

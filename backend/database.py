@@ -47,6 +47,7 @@ def _ensure_sqlite_columns():
             "whatsapp_message": "TEXT",
             "voice_script": "TEXT",
             "rag_summary": "TEXT",
+            "audio_file": "VARCHAR",
         },
         "predictions": {
             "rag_summary": "TEXT",

@@ -152,9 +152,10 @@
 
             <!-- Submit -->
             <div class="form-actions animate-fade-in-up delay-5">
-              <button @click="saveAndProceed" class="btn btn-primary btn-submit hover-lift active-scale">
-                <span>Configure Profile & Get Started</span>
-                <ArrowRight :size="18" class="arrow-icon" />
+              <button @click="saveAndProceed" :disabled="isSubmitting" class="btn btn-primary btn-submit hover-lift active-scale">
+                <span v-if="isSubmitting">Saving profile...</span>
+                <span v-else>Configure Profile & Get Started</span>
+                <ArrowRight v-if="!isSubmitting" :size="18" class="arrow-icon" />
               </button>
               <p class="terms-note">By proceeding, you agree to receive personalized automated campaign messages via WhatsApp, Voice, and SMS.</p>
             </div>
@@ -167,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   Globe, 
@@ -178,8 +179,14 @@ import {
   ShieldAlert,
   User
 } from 'lucide-vue-next'
+import { useRealtimeSync } from '../composables/useRealtimeSync'
+import { upsertFarmer } from '../api'
+import { useToast } from '../composables/useToast'
 
 const router = useRouter()
+const sync = useRealtimeSync()
+const toast = useToast()
+const isSubmitting = ref(false)
 
 // Load pre-existing state if available
 const selectedName = ref(localStorage.getItem('farmer_name') || '')
@@ -206,13 +213,89 @@ const crops = [
 
 const farmSizes = ['Under 2 acres', '2–5 acres', '5–10 acres', '10+ acres']
 
-const saveAndProceed = () => {
-  localStorage.setItem('farmer_name', selectedName.value.trim() || 'Ramesh Kumar')
-  localStorage.setItem('farmer_language', selectedLanguage.value)
-  localStorage.setItem('farmer_crop', selectedCrop.value)
-  localStorage.setItem('farmer_location', selectedLocation.value)
-  localStorage.setItem('farmer_size', selectedFarmSize.value)
+const updateLocalFields = () => {
+  selectedName.value = sync.activeFarmerName.value
+  selectedLanguage.value = sync.activeFarmerLanguage.value
+  selectedCrop.value = sync.activeFarmerCrop.value
+  selectedLocation.value = sync.activeFarmerLocation.value
+  selectedFarmSize.value = sync.activeFarmerSize.value
+}
+
+let cleanupFarmerSync = null
+
+onMounted(() => {
+  cleanupFarmerSync = sync.onFarmerUpdated(() => {
+    updateLocalFields()
+  })
+})
+
+onUnmounted(() => {
+  if (cleanupFarmerSync) {
+    cleanupFarmerSync()
+  }
+  sync.destroy()
+})
+
+watch(sync.activeFarmerGrowerId, () => {
+  updateLocalFields()
+})
+
+const saveAndProceed = async () => {
+  if (isSubmitting.value) return
+  isSubmitting.value = true
+
+  const name = selectedName.value.trim() || 'Ramesh Kumar'
+  const existingId = localStorage.getItem('farmer_grower_id')
+  const growerId = existingId || ('GRW_' + Math.random().toString(36).substring(2, 9).toUpperCase())
+
+  // Parse location into state + district
+  const [state, district] = (selectedLocation.value || '').split(' · ')
+
+  // Extract clean crop name (remove emoji prefix)
+  const cropClean = (selectedCrop.value || '').replace(/^[^\w]+/, '').trim().toLowerCase()
+
+  // Map farm size text to numeric acres
+  const sizeMap = { 'Under 2 acres': 1.5, '2–5 acres': 3.5, '5–10 acres': 7, '10+ acres': 12 }
+  const farmSizeNum = sizeMap[selectedFarmSize.value] || 3.5
+
+  // Device heuristic: check screen width
+  const deviceType = window.innerWidth <= 480 ? 'feature_phone' : 'smartphone'
+
+  // Build the FarmerProfile payload matching the backend schema
+  const profile = {
+    grower_id: growerId,
+    name: name,
+    state: state?.trim() || null,
+    district: district?.trim() || null,
+    language: selectedLanguage.value,
+    main_crop: cropClean,
+    grower_farm_size: farmSizeNum,
+    device_type: deviceType,
+    connectivity: 'good',
+    literacy_level: 'medium',
+  }
+
+  try {
+    // Persist to backend DB
+    await upsertFarmer(profile)
+    toast.success(`✅ Profile registered for ${name}!`)
+  } catch (err) {
+    console.warn('Backend persist failed, continuing with local-only:', err)
+    toast.info('Profile saved locally (backend unreachable)')
+  }
+
+  // Sync to other tabs via BroadcastChannel / WebSocket
+  sync.updateActiveFarmer({
+    name,
+    language: selectedLanguage.value,
+    crop: selectedCrop.value,
+    location: selectedLocation.value,
+    size: selectedFarmSize.value,
+    grower_id: growerId
+  })
+
   localStorage.setItem('farmer_registered', 'true')
+  isSubmitting.value = false
   router.push('/home')
 }
 </script>

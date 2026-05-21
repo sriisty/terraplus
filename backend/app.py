@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 sys.path.insert(0, str(Path(__file__).parent))
 
 from database import init_db
-from routers import campaigns, farmers, predict
+from routers import campaigns, farmers, predict, realtime
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
 logger = logging.getLogger("syngenta.api")
@@ -56,6 +56,7 @@ app.add_middleware(
 app.include_router(farmers.router)
 app.include_router(predict.router)
 app.include_router(campaigns.router)
+app.include_router(realtime.router)
 app.mount("/audio", StaticFiles(directory=str(Path(__file__).parent / "audio")), name="audio")
 
 
@@ -92,3 +93,80 @@ def model_info():
         "feature_columns": _predictor.feature_columns,
         "n_label_encoders": len(_predictor.label_encoders),
     }
+
+
+@app.get("/api/dashboard/stats", tags=["Analytics"], summary="Dashboard KPIs from database")
+def dashboard_stats():
+    """Return live KPIs for the Admin Command Center, sourced entirely from the database."""
+    from database import SessionLocal
+    import models
+
+    db = SessionLocal()
+    try:
+        total_farmers = db.query(models.Farmer).count()
+        total_campaigns = db.query(models.Campaign).count()
+        total_clicked = db.query(models.Campaign).filter(models.Campaign.actual_clicked == True).count()
+        observed_ctr = total_clicked / total_campaigns if total_campaigns else 0
+
+        # Channel breakdown
+        campaigns_all = db.query(models.Campaign).all()
+        by_channel = {}
+        by_segment = {}
+        for c in campaigns_all:
+            ch = (c.channel or "unknown").lower()
+            by_channel[ch] = by_channel.get(ch, 0) + 1
+            seg = c.segment or "unknown"
+            by_segment[seg] = by_segment.get(seg, 0) + 1
+
+        # Recent dispatches (last 10 campaigns with farmer info)
+        recent = (
+            db.query(models.Campaign, models.Farmer)
+            .join(models.Farmer)
+            .order_by(models.Campaign.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        dispatches = []
+        for campaign, farmer in recent:
+            dispatches.append({
+                "id": campaign.id,
+                "farmer_name": farmer.name or f"Farmer {farmer.grower_id}",
+                "grower_id": farmer.grower_id,
+                "location": f"{farmer.state or ''}, {farmer.district or ''}".strip(", "),
+                "channel": campaign.channel,
+                "product": campaign.product,
+                "crop": campaign.campaign_crop,
+                "segment": campaign.segment,
+                "predicted_score": campaign.predicted_score,
+                "actual_clicked": campaign.actual_clicked,
+                "created_at": campaign.created_at.isoformat() if campaign.created_at else None,
+            })
+
+        # Farmer list for reference
+        farmers_list = db.query(models.Farmer).order_by(models.Farmer.created_at.desc()).limit(20).all()
+        farmer_records = [
+            {
+                "grower_id": f.grower_id,
+                "name": f.name,
+                "state": f.state,
+                "district": f.district,
+                "crop": f.crop,
+                "language": f.language,
+                "device_type": f.device_type,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+            }
+            for f in farmers_list
+        ]
+
+        return {
+            "total_farmers": total_farmers,
+            "total_campaigns": total_campaigns,
+            "total_clicked": total_clicked,
+            "observed_ctr": round(observed_ctr, 4),
+            "by_channel": by_channel,
+            "by_segment": by_segment,
+            "recent_dispatches": dispatches,
+            "farmers": farmer_records,
+        }
+    finally:
+        db.close()

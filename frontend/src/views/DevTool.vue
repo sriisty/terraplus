@@ -179,10 +179,10 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { BarChart3, Image, Languages, RadioTower, RefreshCw, Send, Sprout } from 'lucide-vue-next'
 import Chart from 'chart.js/auto'
-import { fetchCampaignHistory, fetchSegmentStats, predictCampaign } from '../api'
+import { fetchCampaignHistory, fetchSegmentStats, predictCampaign, resolveMediaUrl } from '../api'
 
 import AppHeader from '../components/AppHeader.vue'
 import FarmerForm from '../components/FarmerForm.vue'
@@ -199,11 +199,20 @@ import ToastStack from '../components/ToastStack.vue'
 import { useFarmerForm } from '../composables/useFarmerForm'
 import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
+import { useRealtimeSync } from '../composables/useRealtimeSync'
 import { sampleFarmers } from '../data/sampleFarmers'
 
 const form = useFarmerForm()
 const { theme, toggle } = useTheme()
 const toast = useToast()
+const sync = useRealtimeSync()
+
+let cleanupFarmerSync = null
+
+onUnmounted(() => {
+  if (cleanupFarmerSync) cleanupFarmerSync()
+  sync.destroy()
+})
 
 const result = ref(null)
 const loading = ref(false)
@@ -230,7 +239,7 @@ const modelStatus = computed(() => apiStatus.value)
 
 const percent = (v) => `${(v * 100).toFixed(1)}%`
 const pretty = (s) => (s || '').replace(/_/g, ' ')
-const audioUrl = (f) => `http://localhost:8000/audio/${f}`
+const audioUrl = (f) => resolveMediaUrl(f)
 
 async function onSubmit() {
   if (!form.validate()) {
@@ -244,6 +253,24 @@ async function onSubmit() {
     toast.success(
       `Engagement ${(result.value.prediction.engagement_probability * 100).toFixed(1)}% · ${result.value.channel.primary_channel.replaceAll('_', ' ')}`
     )
+    
+    // Sync the active farmer context to match the DevTool form
+    const formGrowerId = form.state.farmer?.grower_id || result.value.grower_id
+    if (formGrowerId) {
+      sync.updateActiveFarmer({
+        grower_id: formGrowerId,
+        name: form.state.farmer_name || sync.activeFarmerName.value,
+        crop: form.state.farmer?.main_crop ? `🌾 ${form.state.farmer.main_crop}` : sync.activeFarmerCrop.value,
+        location: form.state.farmer?.state && form.state.farmer?.district
+          ? `${form.state.farmer.state} · ${form.state.farmer.district}`
+          : sync.activeFarmerLocation.value
+      })
+    }
+
+    // The active farmer context is synced above, which notifies other pages.
+    // The backend endpoint `/api/predict` automatically broadcasts the campaign-generated
+    // event via WebSockets, so no local broadcast is needed here to prevent duplication.
+    
     fetchCampaignHistory().then((rows) => (history.value = rows)).catch(() => {})
   } catch (err) {
     error.value = err.message || 'Prediction failed'
@@ -283,7 +310,36 @@ async function loadAnalytics() {
   }
 }
 
-onMounted(loadAnalytics)
+onMounted(() => {
+  loadAnalytics()
+
+  cleanupFarmerSync = sync.onFarmerUpdated(() => {
+    // Sync the DevTool form with the new active farmer context
+    form.state.farmer_name = sync.activeFarmerName.value
+    form.state.farmer.grower_id = sync.activeFarmerGrowerId.value
+    form.state.farmer.language = sync.activeFarmerLanguage.value
+    
+    if (sync.activeFarmerCrop.value) {
+      form.state.farmer.main_crop = sync.activeFarmerCrop.value.replace(/[^a-zA-Z\s]/g, '').trim()
+    }
+    
+    if (sync.activeFarmerLocation.value) {
+      const parts = sync.activeFarmerLocation.value.split('·')
+      form.state.farmer.state = parts[0] ? parts[0].trim() : ''
+      form.state.farmer.district = parts[1] ? parts[1].trim() : ''
+    }
+    
+    if (sync.activeFarmerSize.value) {
+      const sizeStr = sync.activeFarmerSize.value.toLowerCase()
+      if (sizeStr.includes('under 2')) form.state.farmer.grower_farm_size = 1.5
+      else if (sizeStr.includes('2–5') || sizeStr.includes('2-5')) form.state.farmer.grower_farm_size = 3.5
+      else if (sizeStr.includes('5–10') || sizeStr.includes('5-10')) form.state.farmer.grower_farm_size = 7.5
+      else if (sizeStr.includes('10+')) form.state.farmer.grower_farm_size = 12.0
+    }
+    
+    toast.info(`👤 Form context updated: ${sync.activeFarmerName.value} active`)
+  })
+})
 </script>
 
 <style scoped>
